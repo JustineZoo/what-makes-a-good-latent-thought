@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "good-latent-thought"
+version = "0.1.0"
+description = "What Makes a Good Latent Thought for Reasoning? — research code"
+readme = "README.md"
+requires-python = ">=3.10"
+# Core deps are intentionally light so the data/oracle/analysis layers run anywhere
+# (e.g. a login node with no GPU / no torch). Model + training code needs the
+# `train` extra.
+dependencies = [
+    "numpy>=1.24",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+train = ["torch>=2.1"]           # models, generators, training loops (GPU nodes)
+dev = ["pytest>=7.0"]
+hub = ["huggingface_hub>=0.26"]
+
+[tool.setuptools.packages.find]
+include = ["dlm*", "reproduce*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

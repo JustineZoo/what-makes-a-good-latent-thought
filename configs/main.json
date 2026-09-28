@@ -1,0 +1,147 @@
+{
+  "claims": {
+    "compression": [
+      "s5_token_ar",
+      "s5_ar_r4",
+      "s5_ar_r8"
+    ],
+    "structure": [
+      "s5_ar_r16",
+      "s5_ar_r16_k4",
+      "s5_ar_r16_blockwise"
+    ],
+    "capacity": [
+      "s5_ar_r16_k4",
+      "s5_ar_r32_k8",
+      "affine_ar_r32_k8"
+    ],
+    "refinement": [
+      "s5_ar_r8",
+      "s5_diffusion_r8",
+      "s5_ar_r16_k4",
+      "s5_diffusion_r16_k4",
+      "s5_code_ar",
+      "s5_code_diffusion"
+    ],
+    "walker": [
+      "walker_ar_r1",
+      "walker_ar_r3",
+      "walker_diffusion_r1",
+      "walker_diffusion_r3"
+    ]
+  },
+  "models": {
+    "s5_token_ar": {
+      "checkpoint": "models/s5_token_ar.pt",
+      "seed": 0,
+      "dependencies": []
+    },
+    "s5_ar_r4": {
+      "checkpoint": "models/s5_ar_r4.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/s5_r4.pt"
+      ]
+    },
+    "s5_ar_r8": {
+      "checkpoint": "models/s5_ar_r8.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/s5_r8.pt"
+      ]
+    },
+    "s5_ar_r16": {
+      "checkpoint": "models/s5_ar_r16.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/s5_r16.pt"
+      ]
+    },
+    "s5_ar_r16_k4": {
+      "checkpoint": "models/s5_ar_r16_k4.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/s5_r16_k4.pt"
+      ]
+    },
+    "s5_ar_r16_blockwise": {
+      "checkpoint": "models/s5_ar_r16_blockwise.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/s5_r16_blockwise.pt"
+      ]
+    },
+    "s5_ar_r32_k8": {
+      "checkpoint": "models/s5_ar_r32_k8.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/s5_r32_k8.pt"
+      ]
+    },
+    "affine_ar_r32_k8": {
+      "checkpoint": "models/affine_ar_r32_k8.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/affine_r32_k8.pt"
+      ]
+    },
+    "s5_diffusion_r8": {
+      "checkpoint": "models/s5_diffusion_r8.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/s5_r8.pt"
+      ]
+    },
+    "s5_diffusion_r16_k4": {
+      "checkpoint": "models/s5_diffusion_r16_k4.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/s5_r16_k4.pt"
+      ]
+    },
+    "s5_code_ar": {
+      "checkpoint": "models/s5_code_ar.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/s5_codebook_r16_k4.pt"
+      ]
+    },
+    "s5_code_diffusion": {
+      "checkpoint": "models/s5_code_diffusion.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/s5_codebook_r16_k4.pt"
+      ]
+    },
+    "walker_ar_r1": {
+      "checkpoint": "models/walker_ar_r1.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/walker_r1.pt",
+        "codecs/walker_r3.pt"
+      ]
+    },
+    "walker_ar_r3": {
+      "checkpoint": "models/walker_ar_r3.pt",
+      "seed": 0,
+      "dependencies": [
+        "codecs/walker_r3.pt"
+      ]
+    },
+    "walker_diffusion_r1": {
+      "checkpoint": "models/walker_diffusion_r1.pt",
+      "seed": 3,
+      "dependencies": [
+        "codecs/walker_r1.pt",
+        "codecs/walker_r3.pt"
+      ]
+    },
+    "walker_diffusion_r3": {
+      "checkpoint": "models/walker_diffusion_r3.pt",
+      "seed": 3,
+      "dependencies": [
+        "codecs/walker_r3.pt"
+      ]
+    }
+  }
+}
