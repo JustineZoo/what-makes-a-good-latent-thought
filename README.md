@@ -18,18 +18,17 @@ Full training and evaluation use a CUDA GPU. Small inference checks can use CPU.
 
 ## Checkpoints
 
-The companion HF repository contains **16 representative models and 10 required
-codecs, approximately 3.62 GB**. Each setting has one seed: seed 0, except walker
-diffusion, which uses seed 3 from the paper's repeat cohort. Additional seeds
+The companion [Hugging Face repository](https://huggingface.co/yingheng/what-makes-a-good-latent-thought-checkpoints)
+contains **16 representative models and 10 required codecs, approximately 3.62 GB**.
+Each setting has one seed: seed 0, except walker diffusion, which uses seed 3 from the paper's repeat cohort. Additional seeds
 can be trained with the same code.
 
 ```bash
 python scripts/checkpoints.py download --claim compression \
-  --repo-id OWNER/what-makes-a-good-latent-thought-checkpoints --root checkpoints
+  --repo-id yingheng/what-makes-a-good-latent-thought-checkpoints --root checkpoints
 ```
 
-Replace `OWNER` when the repository is published. Use `--claim all` for the full
-main-model set, or `--model s5_ar_r8` for one model and its codec. Downloads are
+Use `--claim all` for the full main-model set, or `--model s5_ar_r8` for one model and its codec. Downloads are
 verified against SHA-256 checksums. An existing HF snapshot can be used directly
 as `--checkpoint-root`.
 
@@ -101,5 +100,4 @@ Training CLIs expose architecture and task options through `--help`.
 points, and `configs/main.json` the small model-to-claim map. Codec pretraining
 is additional compute; fewer latent emissions do not imply equal FLOPs or latency.
 
-Paper link, author citation, repository URLs and licenses will be added before
-publication.
+The paper link and citation will be added when the preprint is available.
