@@ -21,4 +21,4 @@ wandb/
 *.log
 slurm*.out
 slurm*.err
-repomix-output.xml
+repomix*
