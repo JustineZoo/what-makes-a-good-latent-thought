@@ -45,8 +45,13 @@ def main(argv=None):
     args = build_argparser().parse_args(argv)
     torch.manual_seed(args.seed)
     device = get_device()
-    task = make_task(args.task, n=args.task_n, max_depth=args.task_max_depth,
-                     answer_mode=args.answer_mode)
+    task_kwargs = (
+        {"max_depth": args.task_max_depth, "answer_mode": args.answer_mode}
+        if args.task == "pronto_qa"
+        else dict(n=args.task_n, max_depth=args.task_max_depth,
+                  answer_mode=args.answer_mode)
+    )
+    task = make_task(args.task, **task_kwargs)
     cfg = FSQConfig(vocab_size=len(task.vocab), d_concept=args.d_concept,
                     compression_ratio=args.R, n_slots=args.slots,
                     code_dims=args.code_dims, levels=args.levels,

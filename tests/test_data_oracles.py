@@ -134,6 +134,72 @@ def test_graph_reach_label_balance():
     assert 0.15 < frac_yes < 0.85, f"degenerate label balance: {frac_yes}"
 
 
+def test_pronto_qa():
+    task = make_task("pronto_qa", max_depth=6)
+    _roundtrip(task, depths=[1, 2, 4, 6])
+
+
+def test_pronto_qa_oracle_and_fixed_padding():
+    task = make_task("pronto_qa")
+    assert task.answer_len == 1
+    assert task.max_depth == 6
+    assert task.prompt_len == 1 + 6 * 5 + 6 + 8
+    assert task.vocab.stoi["zumpus"] < task.vocab.stoi["gorpus"]
+    assert task.vocab.stoi["all"] != task.vocab.stoi["are"]
+    _roundtrip(task, depths=range(1, 7), seed=11, bs=128)
+
+    batch = task.sample(512, depth=3, rng=np.random.default_rng(19))
+    assert batch.prompt.shape == (512, task.prompt_len)
+    assert batch.answer.shape == (512, 1)
+    assert (batch.prompt[:, 1 + 3 * 5:1 + 6 * 5] == task.vocab.pad).all()
+    assert np.array_equal(batch.answer, task.oracle(batch.prompt))
+    assert task.check(batch.prompt, batch.answer).all()
+    true_id, false_id = task.vocab.stoi["true"], task.vocab.stoi["false"]
+    assert set(np.unique(batch.answer)) == {true_id, false_id}
+
+
+def test_pronto_qa_trace():
+    task = make_task("pronto_qa", max_depth=6, answer_mode="trace")
+    assert task.n == 1
+    assert task.answer_len == task.max_depth * task.n
+    rng = np.random.default_rng(29)
+    class_ids = task._class_ids
+
+    for depth in range(1, 7):
+        batch = task.sample(64, depth=depth, rng=rng)
+        assert batch.answer.shape == (64, task.max_depth)
+        assert np.array_equal(batch.answer, task.oracle(batch.prompt))
+        assert task.check(batch.prompt, batch.answer).all()
+        assert (batch.answer[:, :depth] != task.vocab.pad).all()
+        assert (batch.answer[:, depth:] == task.vocab.pad).all()
+
+        if depth > 1:
+            early_corrupt = batch.answer.copy()
+            for row in range(len(early_corrupt)):
+                current = int(early_corrupt[row, 0])
+                early_corrupt[row, 0] = next(token for token in class_ids if token != current)
+            assert task.check(batch.prompt, early_corrupt).all()
+            assert not task.trace_exact(batch.prompt, early_corrupt).any()
+
+        end_corrupt = batch.answer.copy()
+        for row in range(len(end_corrupt)):
+            current = int(end_corrupt[row, depth - 1])
+            end_corrupt[row, depth - 1] = next(token for token in class_ids if token != current)
+        assert not task.check(batch.prompt, end_corrupt).any()
+
+
+def test_pronto_qa_vocabulary_is_closed_and_stable():
+    task_a = make_task("pronto_qa")
+    task_b = make_task("pronto_qa")
+    assert task_a.vocab.stoi == task_b.vocab.stoi
+    try:
+        task_a.vocab.encode(["not-a-prontoqa-token"])
+    except KeyError:
+        pass
+    else:
+        raise AssertionError("unknown ProntoQA token unexpectedly encoded")
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for fn in fns:

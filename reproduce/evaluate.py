@@ -17,17 +17,37 @@ from reproduce.common import CONFIG, checkpoint
 
 def trace_metrics(task, prompt, predicted, depth):
     gold = task.oracle(prompt)
+    final = task.check(prompt, predicted)
+    
+    # Handle single-token classification / query tasks (e.g., pronto_qa)
+    if not hasattr(task, "n") or task.answer_len == 1:
+        acc = float(final.mean())
+        return dict(
+            final_state_accuracy=acc,
+            exact_trace_accuracy=acc,
+            state_accuracy=[acc],
+            prefix_survival=[acc],
+            prefix_survival_factor=1.0,
+        )
+
     active = task.n * depth
     token_ok = predicted[:, :active] == gold[:, :active]
     state_ok = token_ok.reshape(len(prompt), depth, task.n).all(2)
-    final = task.check(prompt, predicted)
     assert np.array_equal(final, state_ok[:, -1])
     survival = np.logical_and.accumulate(state_ok, axis=1).mean(0)
-    mask = survival > .02
-    factor = float(np.exp(np.polyfit(np.arange(1, depth+1)[mask], np.log(survival[mask]), 1)[0])) if mask.sum() >= 2 else None
-    return dict(final_state_accuracy=float(final.mean()),
-                exact_trace_accuracy=float(survival[-1]), state_accuracy=state_ok.mean(0).tolist(),
-                prefix_survival=survival.tolist(), prefix_survival_factor=factor)
+    mask = survival > 0.02
+    factor = (
+        float(np.exp(np.polyfit(np.arange(1, depth + 1)[mask], np.log(survival[mask]), 1)[0]))
+        if mask.sum() >= 2
+        else None
+    )
+    return dict(
+        final_state_accuracy=float(final.mean()),
+        exact_trace_accuracy=float(survival[-1]),
+        state_accuracy=state_ok.mean(0).tolist(),
+        prefix_survival=survival.tolist(),
+        prefix_survival_factor=factor,
+    )
 
 
 @torch.no_grad()
@@ -46,7 +66,11 @@ def evaluate(model_id, args):
         gen.load_state_dict(meta['state_dict'])
     else:
         gen, codec, cond, _ = load_generator(path, device)
-    depths = args.depths or ([2, 4, 8, 12] if meta['task'] == 'graph_reach' else [2, 16, 32])
+    depths = args.depths or (
+        [1, 2, 4, 6] if meta['task'] == 'pronto_qa'
+        else [2, 4, 8, 12] if meta['task'] == 'graph_reach'
+        else [2, 16, 32]
+    )
     if any(d > task.max_depth or d < 1 for d in depths):
         raise ValueError(f'Invalid depths for {model_id}: {depths}')
     steps = args.T if 'diffusion' in paradigm else [0]

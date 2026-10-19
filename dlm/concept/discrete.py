@@ -120,8 +120,13 @@ def main(argv=None):
 
     ae = ConceptAutoencoder.load(args.ae, map_location=device).to(device).eval()
     assert ae.cfg.n_slots > 0, "k-means codec requires a factorized (n_slots>0) codec"
-    task = make_task(args.task, n=args.task_n, max_depth=args.task_max_depth,
-                     answer_mode=args.answer_mode)
+    task_kwargs = (
+        {"max_depth": args.task_max_depth, "answer_mode": args.answer_mode}
+        if args.task == "pronto_qa"
+        else dict(n=args.task_n, max_depth=args.task_max_depth,
+                  answer_mode=args.answer_mode)
+    )
+    task = make_task(args.task, **task_kwargs)
     sampler = TaskSampler(task, args.depths, args.batch_size, device, seed=args.seed,
                           uniform=True, depth_power=1.0)
     subs = []

@@ -54,8 +54,13 @@ def main(argv=None):
     fsq = load_codec(args.fsq, map_location=device).to(device).eval()
     for pm in fsq.parameters():
         pm.requires_grad_(False)
-    task = make_task(args.task, n=args.task_n, max_depth=args.task_max_depth,
-                     answer_mode=args.answer_mode)
+    task_kwargs = (
+        {"max_depth": args.task_max_depth, "answer_mode": args.answer_mode}
+        if args.task == "pronto_qa"
+        else dict(n=args.task_n, max_depth=args.task_max_depth,
+                  answer_mode=args.answer_mode)
+    )
+    task = make_task(args.task, **task_kwargs)
     K = fsq.cfg.n_slots
     m_p = -(-task.prompt_len // fsq.R) * K
     m_a = -(-task.answer_len // fsq.R) * K
@@ -96,9 +101,7 @@ def main(argv=None):
     torch.save({"state_dict": model.state_dict(), "kind": args.gen, "kwargs": kwargs,
                 "paradigm": paradigm, "fsq_path": args.fsq, "R": fsq.R,
                 "m_answer_codes": m_a, "n_params": n_params,
-                "task": args.task,
-                "task_kwargs": dict(n=args.task_n, max_depth=args.task_max_depth,
-                                    answer_mode=args.answer_mode)}, args.out)
+                "task": args.task, "task_kwargs": task_kwargs}, args.out)
     print(f"[train_code] saved -> {args.out}")
 
 

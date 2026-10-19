@@ -7,10 +7,12 @@ from .base import Batch, Task
 from .vocab import Vocab
 from .function_compose import FunctionCompose
 from .graph_reach import GraphReach
+from .pronto_qa import ProntoQATask
 
 TASKS: Dict[str, Type[Task]] = {
     "function_compose": FunctionCompose,
     "graph_reach": GraphReach,
+    "pronto_qa": ProntoQATask,
 }
 
 

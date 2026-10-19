@@ -73,6 +73,8 @@ def main(argv=None):
                            answer_mode=args.answer_mode, p_edge=0.6, out_degree=2,
                            walker=(args.group in ("walker", "walkerids")),
                            trace_ids=(args.group == "walkerids"))
+    elif args.task == "pronto_qa":
+        task_kwargs = dict(max_depth=args.task_max_depth, answer_mode=args.answer_mode)
     task = make_task(args.task, **task_kwargs)
 
     cfg = AEConfig(
