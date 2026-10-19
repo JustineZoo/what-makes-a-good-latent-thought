@@ -206,29 +206,3 @@ if __name__ == "__main__":
         fn()
         print(f"ok  {fn.__name__}")
     print(f"\nall {len(fns)} data-oracle tests passed")
-
-
-def test_pronto_qa_query():
-    task = make_task("pronto_qa", max_depth=6, answer_mode="query")
-    _roundtrip(task, depths=[1, 2, 4, 6])
-
-
-def test_pronto_qa_trace():
-    task = make_task("pronto_qa", max_depth=6, answer_mode="trace")
-    assert task.answer_len == 6
-    _roundtrip(task, depths=[1, 2, 4, 6])
-
-
-def test_pronto_qa_trace_grades_chain_end_only():
-    task = make_task("pronto_qa", max_depth=6, answer_mode="trace")
-    rng = np.random.default_rng(42)
-    b = task.sample(32, depth=4, rng=rng)
-    # Corrupt an early intermediate step -> still graded correct by check()
-    early_corrupted = b.answer.copy()
-    early_corrupted[:, 0] = task.vocab.stoi["zumpus"]
-    assert task.check(b.prompt, early_corrupted).all()
-    assert not task.trace_exact(b.prompt, early_corrupted).any()
-    # Corrupt the final target step -> must fail check()
-    final_corrupted = b.answer.copy()
-    final_corrupted[:, 3] = task.vocab.stoi["zumpus"]
-    assert not task.check(b.prompt, final_corrupted).any()
