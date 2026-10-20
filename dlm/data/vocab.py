@@ -20,6 +20,10 @@ PRONTO_QA_SYMBOLS = (
     *PRONTO_QA_CLASSES,
 )
 
+BBH_ENTITIES = ["Alice", "Bob", "Charlie", "Dave", "Eve"]
+BBH_OBJECTS = ["ball0", "ball1", "ball2", "ball3", "ball4"]
+BBH_KEYWORDS = ["has", "and", "swap", "balls", "who", "at", "start"]
+
 
 class Vocab:
     """Closed ordered symbol table. Specials always occupy the first ids.
@@ -70,3 +74,6 @@ class Vocab:
 def pronto_qa_vocab() -> Vocab:
     """Return the fixed ProntoQA vocabulary with stable token IDs."""
     return Vocab(PRONTO_QA_SYMBOLS)
+
+
+BBH_SHUFFLED_OBJECTS_VOCAB = Vocab(BBH_ENTITIES + BBH_OBJECTS + BBH_KEYWORDS)

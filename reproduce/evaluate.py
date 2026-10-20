@@ -69,6 +69,7 @@ def evaluate(model_id, args):
     depths = args.depths or (
         [1, 2, 4, 6] if meta['task'] == 'pronto_qa'
         else [2, 4, 8, 12] if meta['task'] == 'graph_reach'
+        else [1, 2, 4, 8] if meta['task'].startswith('bbh_shuffled_objects')
         else [2, 16, 32]
     )
     if any(d > task.max_depth or d < 1 for d in depths):

@@ -200,6 +200,45 @@ def test_pronto_qa_vocabulary_is_closed_and_stable():
         raise AssertionError("unknown ProntoQA token unexpectedly encoded")
 
 
+def test_bbh_shuffled_objects_query():
+    task = make_task("bbh_shuffled_objects", answer_mode="query")
+    _roundtrip(task, depths=[1, 2, 4, 8])
+
+
+def test_bbh_shuffled_objects_trace():
+    task = make_task("bbh_shuffled_objects", answer_mode="trace")
+    assert task.answer_len == 8 * 5
+    _roundtrip(task, depths=[1, 2, 4, 8])
+
+
+def test_bbh_shuffled_objects_chain_end_grading():
+    task = make_task("bbh_shuffled_objects", answer_mode="trace")
+    depth = 4
+    batch = task.sample(32, depth=depth, rng=np.random.default_rng(31))
+    object0 = task.vocab.stoi["ball0"]
+
+    early_corrupt = batch.answer.copy()
+    early_corrupt[:, 0] = np.where(
+        early_corrupt[:, 0] == object0,
+        task.vocab.stoi["ball1"],
+        object0,
+    )
+    assert task.check(batch.prompt, early_corrupt).all()
+    assert not task.trace_exact(batch.prompt, early_corrupt).any()
+
+    padding_corrupt = batch.answer.copy()
+    padding_corrupt[:, depth * task.n] = object0
+    assert task.check(batch.prompt, padding_corrupt).all()
+
+    end_corrupt = batch.answer.copy()
+    end_corrupt[:, (depth - 1) * task.n] = np.where(
+        end_corrupt[:, (depth - 1) * task.n] == object0,
+        task.vocab.stoi["ball1"],
+        object0,
+    )
+    assert not task.check(batch.prompt, end_corrupt).any()
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for fn in fns:

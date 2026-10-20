@@ -88,6 +88,8 @@ def main(argv=None):
                            trace_ids=(args.group == "walkerids"))
     elif args.task == "pronto_qa":
         task_kwargs = dict(max_depth=args.task_max_depth, answer_mode=args.answer_mode)
+    elif args.task == "bbh_shuffled_objects":
+        task_kwargs = dict(n=args.task_n, max_depth=args.task_max_depth, answer_mode=args.answer_mode)
     task = make_task(args.task, **task_kwargs)
 
     m_p = _concepts(task.prompt_len, cond_ae.R)
