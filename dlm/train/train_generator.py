@@ -107,9 +107,9 @@ def main(argv=None):
                           max_concepts=max_concepts, model_dim=mdim, block=args.block)
     else:
         gen = ConceptAR(
-            d_concept=ae.d_concept,
-            n_layers=args.n_layers,
-            n_heads=args.n_heads,
+            d_concept=ae.cfg.d_concept,
+            n_layers=args.layers,
+            n_heads=args.heads,
             head=args.head,
             head_inner_steps=args.head_inner_steps,
             model_dim=args.model_dim,
