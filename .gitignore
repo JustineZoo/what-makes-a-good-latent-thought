@@ -21,4 +21,4 @@ wandb/
 slurm*.out
 slurm*.err
 logs/
-repomix*
+repo-code.md
