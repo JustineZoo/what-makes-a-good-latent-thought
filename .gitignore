@@ -14,11 +14,11 @@ venv/
 checkpoints/
 runs/
 !artifacts/runs/
-outputs/
 build/
 dist/
 wandb/
 *.log
 slurm*.out
 slurm*.err
+logs/
 repomix*

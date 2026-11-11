@@ -58,6 +58,8 @@ def build_argparser():
     p.add_argument("--depths", type=int, nargs="+", default=[2, 4, 8, 16, 32])
     p.add_argument("--out", required=True)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--slot-buffer", action="store_true", help="enable EntitySlotBuffer in ConceptAR")
+    p.add_argument("--n-slots", type=int, default=5, help="number of coordinate slots in EntitySlotBuffer")
     return p
 
 
@@ -103,11 +105,17 @@ def main(argv=None):
         gen_kwargs = dict(d_concept=d, n_layers=args.layers, n_heads=args.heads,
                           max_concepts=max_concepts, model_dim=mdim, block=args.block)
     else:
-        gen = ConceptAR(d, args.layers, args.heads, max_concepts, args.head,
-                        args.head_inner_steps, model_dim=mdim)
-        gen_kwargs = dict(d_concept=d, n_layers=args.layers, n_heads=args.heads,
-                          max_concepts=max_concepts, head=args.head,
-                          head_inner_steps=args.head_inner_steps, model_dim=mdim)
+        gen = ConceptAR(
+            d, args.layers, args.heads, max_concepts, args.head,
+            args.head_inner_steps, model_dim=mdim,
+            use_slot_buffer=args.slot_buffer, n_slots=args.n_slots,
+        )
+        gen_kwargs = dict(
+            d_concept=d, n_layers=args.layers, n_heads=args.heads,
+            max_concepts=max_concepts, head=args.head,
+            head_inner_steps=args.head_inner_steps, model_dim=mdim,
+            use_slot_buffer=args.slot_buffer, n_slots=args.n_slots,
+        )
 
     sampler = TaskSampler(task, args.depths, args.batch_size, device, seed=args.seed)
 
