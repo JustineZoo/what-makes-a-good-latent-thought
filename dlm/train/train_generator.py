@@ -121,6 +121,7 @@ def main(argv=None):
             max_concepts=max_concepts, head=args.head,
             head_inner_steps=args.head_inner_steps, model_dim=mdim,
             use_slot_buffer=args.slot_buffer, n_slots=args.n_slots,
+            use_gru_buffer=args.gru_buffer,
         )
 
     sampler = TaskSampler(task, args.depths, args.batch_size, device, seed=args.seed)
