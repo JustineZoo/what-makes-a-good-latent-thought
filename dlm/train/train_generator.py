@@ -103,13 +103,13 @@ def main(argv=None):
     if args.gen == "diffusion":
         gen = ConceptFlowMatching(d, args.layers, args.heads, max_concepts, model_dim=mdim,
                                   block=args.block)
-        gen_kwargs = dict(d_concept=d, n_layers=args.layers, n_heads=args.heads,
+        gen_kwargs = dict(d_concept=d, n_layers=args.layers, n_heads=args.heads, max_concepts=max_concepts,
                           max_concepts=max_concepts, model_dim=mdim, block=args.block)
     else:
         gen = ConceptAR(
             d_concept=ae.cfg.d_concept,
             n_layers=args.layers,
-            n_heads=args.heads,
+            n_heads=args.heads, max_concepts=max_concepts,
             head=args.head,
             head_inner_steps=args.head_inner_steps,
             model_dim=args.model_dim,
@@ -117,7 +117,7 @@ def main(argv=None):
             use_gru_buffer=args.gru_buffer,
         )
         gen_kwargs = dict(
-            d_concept=d, n_layers=args.layers, n_heads=args.heads,
+            d_concept=d, n_layers=args.layers, n_heads=args.heads, max_concepts=max_concepts,
             max_concepts=max_concepts, head=args.head,
             head_inner_steps=args.head_inner_steps, model_dim=mdim,
             use_slot_buffer=args.slot_buffer, n_slots=args.n_slots,
