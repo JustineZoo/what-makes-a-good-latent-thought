@@ -1,4 +1,4 @@
-"""Concept-space autoregressive generator (torch) with prompt-grounded EntitySlotBuffer."""
+"""Concept-space autoregressive generator with EntitySlotBuffer and GRUMemoryBuffer."""
 from __future__ import annotations
 
 import torch
@@ -9,10 +9,36 @@ from dlm.models.heads import HEADS
 from .base import Generator
 
 
+class GRUMemoryBuffer(nn.Module):
+    """
+    Parameter-matched dense recurrent baseline (~427k parameters).
+    Carries a single, unfactorized continuous hidden state across emissions.
+    """
+    def __init__(self, d_model: int = 256):
+        super().__init__()
+        self.d_model = d_model
+        # nn.GRUCell(256, 256) has 394,752 parameters
+        self.cell = nn.GRUCell(d_model, d_model)
+        self.init_proj = nn.Linear(d_model, d_model)
+        self.out_proj = nn.Linear(d_model, d_model)
+        self.norm = nn.LayerNorm(d_model)
+
+    def init_state(self, cond: torch.Tensor) -> torch.Tensor:
+        # Ground initial state on mean-pooled prompt representations
+        return torch.tanh(self.init_proj(cond.mean(dim=1)))
+
+    def forward(self, h_t: torch.Tensor, state: torch.Tensor):
+        if h_t.dim() == 3:
+            h_t = h_t.squeeze(1)
+        next_state = self.cell(h_t, state)
+        h_cond = self.norm(h_t + self.out_proj(next_state))
+        return h_cond, next_state
+
+
 class EntitySlotBuffer(nn.Module):
     """
-    Maintains explicit coordinate slots for permutation entities.
-    Initializes slots dynamically from prompt context and sharpens routing via temperature scaling.
+    Maintains explicit coordinate slots for permutation entities (~428k parameters).
+    Initializes slots dynamically from prompt context and sharpens routing via tau=0.1.
     """
     def __init__(self, d_model: int = 256, n_slots: int = 5, n_heads: int = 4, tau: float = 0.1):
         super().__init__()
@@ -20,15 +46,11 @@ class EntitySlotBuffer(nn.Module):
         self.n_slots = n_slots
         self.tau = tau
 
-        # Learnable queries to extract initial object positions from prompt context
         self.slot_queries = nn.Parameter(torch.randn(1, n_slots, d_model) * 0.02)
         self.init_attn = nn.MultiheadAttention(embed_dim=d_model, num_heads=n_heads, batch_first=True)
         self.init_norm = nn.LayerNorm(d_model)
-
-        # Cross-attention to condition hidden states on slot memory
         self.read_attn = nn.MultiheadAttention(embed_dim=d_model, num_heads=n_heads, batch_first=True)
 
-        # State router with temperature scaling
         self.router = nn.Sequential(
             nn.Linear(d_model, d_model // 2),
             nn.ReLU(),
@@ -38,7 +60,6 @@ class EntitySlotBuffer(nn.Module):
         self.norm = nn.LayerNorm(d_model)
 
     def init_slots(self, cond: torch.Tensor) -> torch.Tensor:
-        """Dynamically extract object coordinates from the prompt prefix."""
         B = cond.shape[0]
         queries = self.slot_queries.expand(B, -1, -1)
         slots_0, _ = self.init_attn(query=queries, key=cond, value=cond)
@@ -48,13 +69,11 @@ class EntitySlotBuffer(nn.Module):
         if h_t.dim() == 2:
             h_t = h_t.unsqueeze(1)
 
-        # Read: Condition transition representation on slot memory
         slot_ctx, _ = self.read_attn(query=h_t, key=slots, value=slots)
         h_cond = h_t + slot_ctx
 
-        # Write: Temperature-sharpened routing (tau = 0.1 forces coordinate specificity)
         logits = self.router(h_cond.squeeze(1))
-        alpha = torch.softmax(logits / self.tau, dim=-1).unsqueeze(-1)  # (B, n_slots, 1)
+        alpha = torch.softmax(logits / self.tau, dim=-1).unsqueeze(-1)
 
         tiled_h = h_cond.expand(-1, self.n_slots, -1)
         update_val = self.update_proj(torch.cat([slots, tiled_h], dim=-1))
@@ -76,6 +95,7 @@ class ConceptAR(Generator):
         head_inner_steps: int = 4,
         model_dim: int = None,
         use_slot_buffer: bool = False,
+        use_gru_buffer: bool = False,
         n_slots: int = 5,
         slot_tau: float = 0.1,
     ):
@@ -85,6 +105,7 @@ class ConceptAR(Generator):
         self.w = w
         self.head_inner_steps = head_inner_steps
         self.use_slot_buffer = use_slot_buffer
+        self.use_gru_buffer = use_gru_buffer
 
         if w != d_concept:
             self.in_proj = torch.nn.Linear(d_concept, w)
@@ -100,6 +121,8 @@ class ConceptAR(Generator):
 
         if self.use_slot_buffer:
             self.slot_buffer = EntitySlotBuffer(d_model=self.d, n_slots=n_slots, tau=slot_tau)
+        elif self.use_gru_buffer:
+            self.gru_buffer = GRUMemoryBuffer(d_model=self.d)
 
     def _hidden(self, seq: torch.Tensor) -> torch.Tensor:
         x = self.in_proj(seq) if self.w != self.d else seq
@@ -123,6 +146,13 @@ class ConceptAR(Generator):
                 h_t, slots = self.slot_buffer(pred_h[:, t, :], slots)
                 h_conditioned.append(h_t)
             pred_h = torch.stack(h_conditioned, dim=1)
+        elif self.use_gru_buffer:
+            state = self.gru_buffer.init_state(cond)
+            h_conditioned = []
+            for t in range(mt):
+                h_t, state = self.gru_buffer(pred_h[:, t, :], state)
+                h_conditioned.append(h_t)
+            pred_h = torch.stack(h_conditioned, dim=1)
 
         pred_h_flat = pred_h.reshape(B * mt, d)
         return self.head.loss(pred_h_flat, target.reshape(B * mt, d))
@@ -135,11 +165,16 @@ class ConceptAR(Generator):
 
         if self.use_slot_buffer:
             slots = self.slot_buffer.init_slots(cond)
+        elif self.use_gru_buffer:
+            state = self.gru_buffer.init_state(cond)
 
         for _ in range(n_target):
             h = self._hidden(seq)[:, -1, :]
             if self.use_slot_buffer:
                 h, slots = self.slot_buffer(h, slots)
+            elif self.use_gru_buffer:
+                h, state = self.gru_buffer(h, state)
+
             nxt = self.head.sample(h, steps=self.head_inner_steps)
             out.append(nxt)
             seq = torch.cat([seq, nxt.unsqueeze(1)], dim=1)

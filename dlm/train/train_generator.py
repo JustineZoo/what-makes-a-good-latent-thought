@@ -60,6 +60,7 @@ def build_argparser():
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--slot-buffer", action="store_true", help="enable EntitySlotBuffer in ConceptAR")
     p.add_argument("--n-slots", type=int, default=5, help="number of coordinate slots in EntitySlotBuffer")
+    p.add_argument("--gru-buffer", action="store_true", help="Equip ConceptAR with parameter-matched GRU memory.")
     return p
 
 
@@ -106,9 +107,14 @@ def main(argv=None):
                           max_concepts=max_concepts, model_dim=mdim, block=args.block)
     else:
         gen = ConceptAR(
-            d, args.layers, args.heads, max_concepts, args.head,
-            args.head_inner_steps, model_dim=mdim,
-            use_slot_buffer=args.slot_buffer, n_slots=args.n_slots,
+            d_concept=ae.d_concept,
+            n_layers=args.n_layers,
+            n_heads=args.n_heads,
+            head=args.head,
+            head_inner_steps=args.head_inner_steps,
+            model_dim=args.model_dim,
+            use_slot_buffer=args.slot_buffer,
+            use_gru_buffer=args.gru_buffer,
         )
         gen_kwargs = dict(
             d_concept=d, n_layers=args.layers, n_heads=args.heads,
