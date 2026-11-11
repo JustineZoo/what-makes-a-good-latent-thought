@@ -101,27 +101,40 @@ def main(argv=None):
 
     mdim = args.model_dim or None
     if args.gen == "diffusion":
-        gen = ConceptFlowMatching(d, args.layers, args.heads, max_concepts, model_dim=mdim,
-                                  block=args.block)
-        gen_kwargs = dict(d_concept=d, n_layers=args.layers, n_heads=args.heads, max_concepts=max_concepts,
-                          max_concepts=max_concepts, model_dim=mdim, block=args.block)
+        gen = ConceptFlowMatching(
+            d, args.layers, args.heads, max_concepts, model_dim=mdim, block=args.block
+        )
+        gen_kwargs = dict(
+            d_concept=d,
+            n_layers=args.layers,
+            n_heads=args.heads,
+            max_concepts=max_concepts,
+            model_dim=mdim,
+            block=args.block,
+        )
     else:
         gen = ConceptAR(
             d_concept=ae.cfg.d_concept,
             n_layers=args.layers,
-            n_heads=args.heads, max_concepts=max_concepts,
+            n_heads=args.heads,
+            max_concepts=max_concepts,
             head=args.head,
             head_inner_steps=args.head_inner_steps,
-            model_dim=args.model_dim,
-            use_slot_buffer=args.slot_buffer,
-            use_gru_buffer=args.gru_buffer,
+            model_dim=mdim,
+            use_slot_buffer=getattr(args, "slot_buffer", False),
+            use_gru_buffer=getattr(args, "gru_buffer", False),
         )
         gen_kwargs = dict(
-            d_concept=d, n_layers=args.layers, n_heads=args.heads, max_concepts=max_concepts,
-            max_concepts=max_concepts, head=args.head,
-            head_inner_steps=args.head_inner_steps, model_dim=mdim,
-            use_slot_buffer=args.slot_buffer, n_slots=args.n_slots,
-            use_gru_buffer=args.gru_buffer,
+            d_concept=d,
+            n_layers=args.layers,
+            n_heads=args.heads,
+            max_concepts=max_concepts,
+            head=args.head,
+            head_inner_steps=args.head_inner_steps,
+            model_dim=mdim,
+            use_slot_buffer=getattr(args, "slot_buffer", False),
+            n_slots=getattr(args, "n_slots", 5),
+            use_gru_buffer=getattr(args, "gru_buffer", False),
         )
 
     sampler = TaskSampler(task, args.depths, args.batch_size, device, seed=args.seed)
