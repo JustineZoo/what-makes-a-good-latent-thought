@@ -36,7 +36,8 @@ from .vocab import Vocab
 class GraphReach(Task):
     def __init__(self, width: int = 3, max_depth: int = 8, p_edge: float = 0.4,
                  answer_mode: str = "query", out_degree: int = 2,
-                 walker: bool = False, trace_ids: bool = False):
+                 walker: bool = False, trace_ids: bool = False,
+                 bijective: bool = False):
         """``walker=True`` (trace mode only): exactly ONE out-edge per node per
         layer, i.e. each layer applies a total function [width]->[width] and the
         frontier is always a single node (1-hot rows). This removes the
@@ -56,6 +57,7 @@ class GraphReach(Task):
         # cleanly. Grading = the D-th token.
         self.walker = walker
         self.trace_ids = trace_ids
+        self.bijective = bijective
         self.width = width
         self.max_depth = max_depth
         self.p_edge = p_edge
@@ -159,6 +161,10 @@ class GraphReach(Task):
         empty."""
         slots = np.full((self.max_depth, self.width, self.out_degree), -1, dtype=np.int64)
         for layer in range(depth):
+            if self.walker and self.bijective:
+                slots[layer, :, 0] = rng.permutation(self.width)
+                continue
+
             for i in range(self.width):
                 if self.walker:
                     slots[layer, i, 0] = int(rng.integers(0, self.width))
