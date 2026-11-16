@@ -27,6 +27,7 @@ def build_argparser():
     p.add_argument("--answer-mode", default="query")
     p.add_argument("--group", default="s5", choices=["s5", "affine", "walker", "walkerids"],
                    help="s5/affine select the function_compose group; walker selects the\n                        deterministic graph_reach variant")
+    p.add_argument("--bijective", action="store_true", help="Enforce bijective permutations in graph_reach")
     p.add_argument("--R", type=int, default=8)
     p.add_argument("--beta", type=float, default=1.0)
     p.add_argument("--free-bits", type=float, default=0.5)
@@ -72,7 +73,8 @@ def main(argv=None):
         task_kwargs = dict(width=args.task_n, max_depth=args.task_max_depth,
                            answer_mode=args.answer_mode, p_edge=0.6, out_degree=2,
                            walker=(args.group in ("walker", "walkerids")),
-                           trace_ids=(args.group == "walkerids"))
+                           trace_ids=(args.group == "walkerids"),
+                           bijective=args.bijective)
     elif args.task == "pronto_qa":
         task_kwargs = dict(max_depth=args.task_max_depth, answer_mode=args.answer_mode)
     elif args.task == "bbh_shuffled_objects":

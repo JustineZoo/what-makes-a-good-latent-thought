@@ -25,14 +25,22 @@ class ConceptFlowMatching(Generator):
     paradigm = "concept_diffusion"
 
     def __init__(self, d_concept: int, n_layers: int = 12, n_heads: int = 8, max_concepts: int = 64,
-                 model_dim: int = None, block: str = "adaln"):
+                 model_dim: int = None, block: str = "adaln", unpack_slots: int = 1):
         super().__init__()
-        self.net = ConceptDenoiser(d_concept, n_layers, n_heads, max_concepts,
+        assert d_concept % unpack_slots == 0, (
+            f"d_concept ({d_concept}) must be divisible by unpack_slots ({unpack_slots})"
+        )
+        self.unpack_slots = unpack_slots
+        self.eff_d = d_concept // unpack_slots
+        eff_max = max_concepts * unpack_slots
+        self.net = ConceptDenoiser(self.eff_d, n_layers, n_heads, eff_max,
                                    cross_condition=True, model_dim=model_dim, block=block)
         self.d = d_concept
         self.block = block
 
     def fit_step(self, target: torch.Tensor, cond: torch.Tensor) -> torch.Tensor:
+        target = self._unpack(target)
+        cond = self._unpack(cond)
         B = target.shape[0]
         t = torch.rand(B, device=target.device)
         noise = torch.randn_like(target)
@@ -46,15 +54,29 @@ class ConceptFlowMatching(Generator):
 
     @torch.no_grad()
     def sample(self, cond: torch.Tensor, n_target: int, T: int = 32, **_) -> torch.Tensor:
+        cond = self._unpack(cond)
+        n_target = n_target * self.unpack_slots
         B = cond.shape[0]
-        z = torch.randn(B, n_target, self.d, device=cond.device)
+        z = torch.randn(B, n_target, self.eff_d, device=cond.device)
         x0_hat = None
         for i in range(T):  # integrate t: 1 -> 0; the last step lands exactly on x0_hat
             t = 1.0 - i / T
             tv = torch.full((B,), t, device=cond.device)
             x0_hat = self.net(z, tv, cond=cond, self_cond=x0_hat)
             z = z - (1.0 / T) * (z - x0_hat) / t
-        return z
+        return self._pack(z)
 
     def serial_cost(self, T: int = 32, **_) -> int:
         return T
+
+    def _unpack(self, z: torch.Tensor) -> torch.Tensor:
+        if self.unpack_slots <= 1:
+            return z
+        B, M, D = z.shape
+        return z.view(B, M * self.unpack_slots, D // self.unpack_slots)
+
+    def _pack(self, z: torch.Tensor) -> torch.Tensor:
+        if self.unpack_slots <= 1:
+            return z
+        B, MK, d_sub = z.shape
+        return z.view(B, MK // self.unpack_slots, d_sub * self.unpack_slots)

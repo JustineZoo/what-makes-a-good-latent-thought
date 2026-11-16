@@ -39,6 +39,7 @@ def build_argparser():
     p.add_argument("--answer-mode", default="query")
     p.add_argument("--group", default="s5", choices=["s5", "affine", "walker", "walkerids"],
                    help="s5/affine select the function_compose group; walker selects the\n                        deterministic graph_reach variant")
+    p.add_argument("--bijective", action="store_true", help="Enforce bijective permutations in graph_reach")
     p.add_argument("--layers", type=int, default=12)
     p.add_argument("--heads", type=int, default=8)
     p.add_argument("--model-dim", type=int, default=0,
@@ -61,6 +62,8 @@ def build_argparser():
     p.add_argument("--slot-buffer", action="store_true", help="enable EntitySlotBuffer in ConceptAR")
     p.add_argument("--n-slots", type=int, default=5, help="number of coordinate slots in EntitySlotBuffer")
     p.add_argument("--gru-buffer", action="store_true", help="Equip ConceptAR with parameter-matched GRU memory.")
+    p.add_argument("--unpack-slots", action="store_true",
+                   help="Unpack K sub-slots into K separate spatial positions for diffusion")
     return p
 
 
@@ -88,7 +91,8 @@ def main(argv=None):
         task_kwargs = dict(width=args.task_n, max_depth=args.task_max_depth,
                            answer_mode=args.answer_mode, p_edge=0.6, out_degree=2,
                            walker=(args.group in ("walker", "walkerids")),
-                           trace_ids=(args.group == "walkerids"))
+                           trace_ids=(args.group == "walkerids"),
+                           bijective=args.bijective)
     elif args.task == "pronto_qa":
         task_kwargs = dict(max_depth=args.task_max_depth, answer_mode=args.answer_mode)
     elif args.task == "bbh_shuffled_objects":
@@ -101,8 +105,14 @@ def main(argv=None):
 
     mdim = args.model_dim or None
     if args.gen == "diffusion":
+        if getattr(args, "unpack_slots", False):
+            assert ae.cfg.n_slots > 0, "--unpack-slots requires a factorized AE (n_slots > 0)"
+            unpack_k = ae.cfg.n_slots
+        else:
+            unpack_k = 1
         gen = ConceptFlowMatching(
-            d, args.layers, args.heads, max_concepts, model_dim=mdim, block=args.block
+            d, args.layers, args.heads, max_concepts,
+            model_dim=mdim, block=args.block, unpack_slots=unpack_k,
         )
         gen_kwargs = dict(
             d_concept=d,
@@ -111,6 +121,7 @@ def main(argv=None):
             max_concepts=max_concepts,
             model_dim=mdim,
             block=args.block,
+            unpack_slots=unpack_k,
         )
     else:
         gen = ConceptAR(
@@ -122,6 +133,7 @@ def main(argv=None):
             head_inner_steps=args.head_inner_steps,
             model_dim=mdim,
             use_slot_buffer=getattr(args, "slot_buffer", False),
+            n_slots=getattr(args, "n_slots", 5),
             use_gru_buffer=getattr(args, "gru_buffer", False),
         )
         gen_kwargs = dict(

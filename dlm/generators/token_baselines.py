@@ -77,6 +77,95 @@ class TokenAR(nn.Module):
         return n_answer
 
 
+class TokenMTP(nn.Module):
+    """Causal transformer predicting R discrete tokens per forward pass (no VAE)."""
+    paradigm = "token_mtp"
+
+    def __init__(
+        self,
+        vocab_size: int,
+        d_model: int = 256,
+        n_layers: int = 12,
+        n_heads: int = 8,
+        max_len: int = 256,
+        dropout: float = 0.0,
+        R: int = 8,
+    ):
+        super().__init__()
+        self.vocab_size = vocab_size
+        self.d_model = d_model
+        self.R = R
+
+        self.tok_emb = nn.Embedding(vocab_size, d_model)
+        self.slot_emb = nn.Parameter(torch.randn(1, R, d_model) * 0.02)
+        self.chunk_proj = nn.Linear(R * d_model, d_model)
+        self.bos = nn.Parameter(torch.randn(1, 1, d_model) * 0.02)
+        self.pos_emb = nn.Parameter(torch.randn(1, max_len, d_model) * 0.02)
+
+        enc_layer = nn.TransformerEncoderLayer(
+            d_model=d_model,
+            nhead=n_heads,
+            dim_feedforward=4 * d_model,
+            dropout=dropout,
+            activation="gelu",
+            batch_first=True,
+            norm_first=True,
+        )
+        self.blocks = nn.TransformerEncoder(enc_layer, num_layers=n_layers)
+        self.norm = nn.LayerNorm(d_model)
+        self.head = nn.Linear(d_model, R * vocab_size)
+
+    def _embed_chunks(self, tokens: torch.Tensor) -> torch.Tensor:
+        """Pack (B, L_a) discrete tokens into (B, ceil(L_a/R), d_model) chunk embeddings."""
+        B, L = tokens.shape
+        m = (L + self.R - 1) // self.R
+        pad = m * self.R - L
+        if pad > 0:
+            tokens = F.pad(tokens, (0, pad), value=0)
+        emb = self.tok_emb(tokens.view(B, m, self.R)) + self.slot_emb.unsqueeze(1)
+        return self.chunk_proj(emb.reshape(B, m, self.R * self.d_model))
+
+    def _forward_causal(self, seq: torch.Tensor) -> torch.Tensor:
+        T = seq.shape[1]
+        x = seq + self.pos_emb[:, :T, :]
+        mask = torch.nn.Transformer.generate_square_subsequent_mask(T, device=seq.device)
+        return self.norm(self.blocks(x, mask=mask, is_causal=True))
+
+    def fit_step(self, prompt: torch.Tensor, answer: torch.Tensor) -> torch.Tensor:
+        B, L_p = prompt.shape
+        _, L_a = answer.shape
+        m_a = (L_a + self.R - 1) // self.R
+
+        p_emb = self.tok_emb(prompt)
+        a_chunks = self._embed_chunks(answer)
+        bos = self.bos.expand(B, 1, self.d_model)
+        seq = torch.cat([p_emb, bos, a_chunks[:, :-1, :]], dim=1)
+
+        h = self._forward_causal(seq)[:, L_p : L_p + m_a, :]
+        logits = self.head(h).view(B, m_a * self.R, self.vocab_size)[:, :L_a, :]
+        return F.cross_entropy(logits.reshape(-1, self.vocab_size), answer.reshape(-1))
+
+    @torch.no_grad()
+    def sample(self, prompt: torch.Tensor, n_answer: int, **_) -> torch.Tensor:
+        B = prompt.shape[0]
+        m_a = (n_answer + self.R - 1) // self.R
+        p_emb = self.tok_emb(prompt)
+        seq = torch.cat([p_emb, self.bos.expand(B, 1, self.d_model)], dim=1)
+
+        preds = []
+        for _ in range(m_a):
+            h_last = self._forward_causal(seq)[:, -1, :]
+            toks_r = self.head(h_last).view(B, self.R, self.vocab_size).argmax(dim=-1)
+            preds.append(toks_r)
+            nxt_chunk = self._embed_chunks(toks_r)
+            seq = torch.cat([seq, nxt_chunk], dim=1)
+
+        return torch.cat(preds, dim=1)[:, :n_answer]
+
+    def serial_cost(self, n_answer: int, **_) -> int:
+        return max(1, (n_answer + self.R - 1) // self.R)
+
+
 class TokenMaskedDiffusion(nn.Module):
     paradigm = "token_diffusion"
 

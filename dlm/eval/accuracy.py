@@ -16,7 +16,7 @@ from dlm.concept.ae import ConceptAutoencoder
 from dlm.generators.ar import ConceptAR
 from dlm.generators.diffusion import ConceptFlowMatching
 from dlm.generators.token_baselines import (TokenAR, TokenMaskedDiffusion,
-                                            TokenUniformDiffusion)
+                                            TokenUniformDiffusion, TokenMTP)
 from dlm.train.loop import get_device
 from dlm.checkpoints import resolve_checkpoint_path
 
@@ -49,7 +49,7 @@ def load_token_generator(path: str, device=None):
     path = resolve_checkpoint_path(path)
     ckpt = torch.load(path, map_location=device, weights_only=True)
     cls = {"token_ar": TokenAR, "token_diffusion": TokenMaskedDiffusion,
-           "token_uniform": TokenUniformDiffusion}[ckpt["kind"]]
+           "token_uniform": TokenUniformDiffusion, "mtp": TokenMTP}[ckpt["kind"]]
     gen = cls(**ckpt["kwargs"])
     gen.load_state_dict(ckpt["state_dict"])
     gen.to(device).eval()

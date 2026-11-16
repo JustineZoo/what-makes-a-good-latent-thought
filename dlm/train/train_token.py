@@ -11,13 +11,13 @@ import torch
 
 from dlm.data import make_task
 from dlm.generators.token_baselines import (TokenAR, TokenMaskedDiffusion,
-                                            TokenUniformDiffusion)
+                                            TokenUniformDiffusion, TokenMTP)
 from dlm.train.loop import TaskSampler, get_device, train
 
 
 def build_argparser():
     p = argparse.ArgumentParser()
-    p.add_argument("--gen", choices=["token_ar", "token_diffusion", "token_uniform"],
+    p.add_argument("--gen", choices=["token_ar", "token_diffusion", "token_uniform", "mtp"],
                    required=True)
     p.add_argument("--task", default="function_compose")
     p.add_argument("--task-n", type=int, default=5)
@@ -38,6 +38,7 @@ def build_argparser():
                         "or uniform-state objective (ce = UDLM simple CE | nelbo = exact "
                         "UDLM continuous-time NELBO); ignored for AR")
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--R", type=int, default=1, help="Tokens per step for TokenMTP")
     return p
 
 
@@ -69,6 +70,23 @@ def main(argv=None):
                                       max_len=task.max_len, objective=args.objective)
         kwargs = dict(vocab_size=V, d=args.d, n_layers=args.layers, n_heads=args.heads,
                       max_len=task.max_len, objective=args.objective)
+    elif args.gen == "mtp":
+        model = TokenMTP(
+            vocab_size=V,
+            d_model=args.d,
+            n_layers=args.layers,
+            n_heads=args.heads,
+            max_len=task.max_len,
+            R=args.R,
+        )
+        kwargs = dict(
+            vocab_size=V,
+            d_model=args.d,
+            n_layers=args.layers,
+            n_heads=args.heads,
+            max_len=task.max_len,
+            R=args.R,
+        )
     else:
         model = TokenMaskedDiffusion(V + 1, mask_id=V, d=args.d, n_layers=args.layers,
                                      n_heads=args.heads, max_len=task.max_len,
