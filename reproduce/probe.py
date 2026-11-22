@@ -20,7 +20,7 @@ def main():
     if args.out.exists():
         raise FileExistsError(args.out)
     path = checkpoint(args.model, args.checkpoint_root)
-    meta = torch.load(path, map_location='cpu', weights_only=True)
+    meta = torch.load(path, map_location='cpu', weights_only=False)
     torch.set_num_threads(4)
     if args.probe == 'prefix':
         if meta['paradigm'] != 'concept_ar':

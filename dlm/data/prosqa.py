@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
+from dlm.data.gsm8k_aug import format_prompt
 
 _QUERY_RE = re.compile(r"Is\s+([A-Za-z0-9_-]+)\s+(?:an?|the)\s+([A-Za-z0-9_-]+)\s+or\s+(?:(?:an?|the)\s+)?([A-Za-z0-9_-]+)\?", re.I)
 
@@ -46,7 +47,7 @@ def parse_prosqa_record(rec: Dict[str, object]) -> Optional[ProsQAExample]:
     if ans and ans not in cands:
         cands.append(ans)
 
-    prompt = f"Question: {question}\nAnswer:"
+    prompt = format_prompt(question)
     step_str = " ".join(steps)
     target = f" {step_str} #### {ans}" if step_str else f" #### {ans}"
     return ProsQAExample(

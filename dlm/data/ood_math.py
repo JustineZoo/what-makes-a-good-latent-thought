@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from dlm.data.gsm8k_aug import GSM8KExample
+from dlm.data.gsm8k_aug import GSM8KExample, format_prompt
 
 _DATASET_SPECS: Dict[str, Tuple[str, str]] = {
     "svamp": ("ChilleD/SVAMP", "test"),
@@ -46,7 +46,7 @@ def _normalize_record(rec: Dict[str, object], dataset_name: str) -> Optional[GSM
 
     if not question or not ans:
         return None
-    prompt = f"Question: {question}\nAnswer:"
+    prompt = format_prompt(question)
     target = f" #### {ans}"
     return GSM8KExample(
         prompt=prompt,

@@ -21,7 +21,7 @@ def main():
     if args.out.exists():
         raise FileExistsError(args.out)
     path = checkpoint(args.model, args.checkpoint_root)
-    meta = torch.load(path, map_location='cpu', weights_only=True)
+    meta = torch.load(path, map_location='cpu', weights_only=False)
     kw, task = meta['kwargs'], meta['task_kwargs']
     walker = meta['task'] == 'graph_reach'
     depths = [2, 4, 8, 12] if walker else [2, 4, 8, 16, 32]

@@ -53,7 +53,7 @@ def trace_metrics(task, prompt, predicted, depth):
 @torch.no_grad()
 def evaluate(model_id, args):
     path = checkpoint(model_id, args.checkpoint_root)
-    meta = torch.load(path, map_location='cpu', weights_only=True)
+    meta = torch.load(path, map_location='cpu', weights_only=False)
     device = torch.device(args.device)
     task = _task_from_meta(meta)
     paradigm = meta['paradigm']

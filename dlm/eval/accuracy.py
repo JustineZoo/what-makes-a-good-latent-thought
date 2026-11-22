@@ -28,7 +28,7 @@ def load_generator(path: str, device=None):
     prompt-side AE (same object as ae unless --cond-ae was used)."""
     device = device or get_device()
     path = resolve_checkpoint_path(path)
-    ckpt = torch.load(path, map_location=device, weights_only=True)
+    ckpt = torch.load(path, map_location=device, weights_only=False)
     ckpt['ae_path'] = resolve_checkpoint_path(ckpt['ae_path'], anchor=path)
     if ckpt.get('cond_ae_path'):
         ckpt['cond_ae_path'] = resolve_checkpoint_path(ckpt['cond_ae_path'], anchor=path)
@@ -48,7 +48,7 @@ def load_token_generator(path: str, device=None):
     (generator, meta)."""
     device = device or get_device()
     path = resolve_checkpoint_path(path)
-    ckpt = torch.load(path, map_location=device, weights_only=True)
+    ckpt = torch.load(path, map_location=device, weights_only=False)
     cls = {"token_ar": TokenAR, "token_diffusion": TokenMaskedDiffusion,
            "token_uniform": TokenUniformDiffusion, "mtp": TokenMTP}[ckpt["kind"]]
     gen = cls(**ckpt["kwargs"])
