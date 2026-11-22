@@ -21,4 +21,4 @@ wandb/
 slurm*.out
 slurm*.err
 logs/
-repo-code.md
+repo-code.mdoutputs/

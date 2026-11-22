@@ -26,17 +26,18 @@ N=${NS[$SLURM_ARRAY_TASK_ID]}
 MODE=${MODES[$SLURM_ARRAY_TASK_ID]}
 TAG=${TAGS[$SLURM_ARRAY_TASK_ID]}
 
-if [ ! -f outputs/ae_bbh_n${N}_r${N}.pt ]; then
+if [ ! -f outputs/ae_s${N}_r${N}.pt ]; then
   python -m dlm.train.train_ae \
-    --task bbh_shuffled_objects --task-n $N --task-max-depth 8 --answer-mode trace \
-    --R $N --slots 1 --d-concept 320 --depths 1 2 4 8 --uniform-depths --depth-power 1.0 \
-    --beta 0.05 --steps 15000 --batch-size 64 --gate-recon 0.95 \
-    --out outputs/ae_bbh_n${N}_r${N}.pt
+    --task function_compose --task-n $N --task-max-depth 8 --answer-mode trace \
+    --R $N --slots 1 --d-concept 320 --dec-layers 6 \
+    --depths 1 2 4 8 --uniform-depths --depth-power 1.0 \
+    --beta 0.02 --steps 30000 --batch-size 64 --gate-recon 0.95 \
+    --out outputs/ae_s${N}_r${N}.pt
 fi
 
 python -m dlm.train.train_generator \
-  --ae outputs/ae_bbh_n${N}_r${N}.pt --gen ar $MODE --n-slots $N \
-  --task bbh_shuffled_objects --task-n $N --task-max-depth 8 --answer-mode trace \
+  --ae outputs/ae_s${N}_r${N}.pt --gen ar $MODE --n-slots $N \
+  --task function_compose --task-n $N --task-max-depth 8 --answer-mode trace \
   --depths 1 2 4 8 --steps 25000 --batch-size 128 --lr 3e-4 \
   --out outputs/gen_${TAG}_25k.pt
 
@@ -45,7 +46,7 @@ import numpy as np
 from dlm.eval.accuracy import load_generator, eval_concept_generator, _task_from_meta
 gen, ae, _, meta = load_generator('outputs/gen_${TAG}_25k.pt', device='cuda')
 task = _task_from_meta(meta)
-with open('outputs/bbh_${TAG}_multiseed.txt', 'w') as f:
+with open('outputs/s${N}_${TAG}_multiseed.txt', 'w') as f:
     for d in [1, 2, 4, 8]:
         rec = [eval_concept_generator(gen, ae, task, depths=[d], n_per_depth=2048, seed=s, device='cuda')[d]*100 for s in [12345,12346,12347]]
         line = f'Depth {d}: {np.mean(rec):6.2f}% +/- {np.std(rec):4.2f}%'
