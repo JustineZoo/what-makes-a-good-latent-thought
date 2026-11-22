@@ -97,12 +97,16 @@ class LLMLatentCodec(nn.Module):
         q_queries = q_queries.unsqueeze(0).expand(B, -1, -1).to(q_emb.dtype)
 
         seq_emb = torch.cat([q_emb, z_emb, q_queries], dim=1)
-        extra_mask = torch.ones((B, m + out_len), device=device, dtype=q_mask.dtype)
+        extra_len = seq_emb.shape[1] - q_emb.shape[1]
+        extra_mask = torch.ones((B, extra_len), device=device, dtype=q_mask.dtype)
         seq_mask = torch.cat([q_mask, extra_mask], dim=1)
+        pos_ids = seq_mask.long().cumsum(-1) - 1
+        pos_ids.masked_fill_(seq_mask == 0, 0)
 
         out = self.decoder(
             inputs_embeds=seq_emb,
             attention_mask=seq_mask,
+            position_ids=pos_ids,
             output_hidden_states=True,
         )
         h_target = out.hidden_states[-1][:, -out_len:, :]
@@ -162,12 +166,16 @@ class LLMLatentGenerator(nn.Module):
         if prefix_z is not None and prefix_z.shape[1] > 0:
             parts.append(self.in_proj(prefix_z).to(q_emb.dtype))
         seq_emb = torch.cat(parts, dim=1)
-        extra_mask = torch.ones((B, n_steps), device=q_ids.device, dtype=q_mask.dtype)
+        extra_len = seq_emb.shape[1] - q_emb.shape[1]
+        extra_mask = torch.ones((B, extra_len), device=q_ids.device, dtype=q_mask.dtype)
         seq_mask = torch.cat([q_mask, extra_mask], dim=1)
+        pos_ids = seq_mask.long().cumsum(-1) - 1
+        pos_ids.masked_fill_(seq_mask == 0, 0)
 
         out = self.backbone(
             inputs_embeds=seq_emb,
             attention_mask=seq_mask,
+            position_ids=pos_ids,
             output_hidden_states=True,
         )
         h = out.hidden_states[-1][:, -n_steps:, :]
@@ -207,9 +215,12 @@ class LLMLatentGenerator(nn.Module):
 
         emitted = []
         for _ in range(n_latents):
+            pos_ids = seq_mask.long().cumsum(-1) - 1
+            pos_ids.masked_fill_(seq_mask == 0, 0)
             out = self.backbone(
                 inputs_embeds=seq_emb,
                 attention_mask=seq_mask,
+                position_ids=pos_ids,
                 output_hidden_states=True,
             )
             h_last = out.hidden_states[-1][:, -1, :].float()
