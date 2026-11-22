@@ -39,6 +39,7 @@ def build_argparser():
                         "UDLM continuous-time NELBO); ignored for AR")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--R", type=int, default=1, help="Tokens per step for TokenMTP")
+    p.add_argument("--bijective", action="store_true", help="Enforce bijective permutations in graph_reach")
     return p
 
 
@@ -53,7 +54,8 @@ def main(argv=None):
         task_kwargs = dict(width=args.task_n, max_depth=args.task_max_depth,
                            answer_mode=args.answer_mode, p_edge=0.6, out_degree=2,
                            walker=(args.group in ("walker", "walkerids")),
-                           trace_ids=(args.group == "walkerids"))
+                           trace_ids=(args.group == "walkerids"),
+                           bijective=args.bijective)
     elif args.task == "pronto_qa":
         task_kwargs = dict(max_depth=args.task_max_depth, answer_mode=args.answer_mode)
     elif args.task == "bbh_shuffled_objects":

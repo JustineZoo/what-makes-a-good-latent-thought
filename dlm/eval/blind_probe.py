@@ -38,8 +38,11 @@ from dlm.train.loop import get_device
 def sample_blinded(gen, cond_true, cond_alt, n_target: int, T: int, k: int,
                    direction: str) -> torch.Tensor:
     """The ConceptFlowMatching sampler with a per-step conditioning switch."""
+    cond_true = gen._unpack(cond_true)
+    cond_alt = gen._unpack(cond_alt)
+    n_target = n_target * gen.unpack_slots
     B = cond_true.shape[0]
-    z = torch.randn(B, n_target, gen.d, device=cond_true.device)
+    z = torch.randn(B, n_target, gen.eff_d, device=cond_true.device)
     x0_hat = None
     for i in range(T):
         t = 1.0 - i / T
@@ -48,7 +51,7 @@ def sample_blinded(gen, cond_true, cond_alt, n_target: int, T: int, k: int,
         c = cond_true if honest else cond_alt
         x0_hat = gen.net(z, tv, cond=c, self_cond=x0_hat)
         z = z - (1.0 / T) * (z - x0_hat) / t
-    return z
+    return gen._pack(z)
 
 
 @torch.no_grad()

@@ -1,3 +1,5 @@
+import pytest
+pytest.importorskip("transformers")
 import torch
 from transformers import LlamaConfig, LlamaForCausalLM
 from dlm.models.llm_codec import LLMCodecConfig, LLMLatentCodec, LLMLatentGenerator

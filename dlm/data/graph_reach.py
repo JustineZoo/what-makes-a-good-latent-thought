@@ -49,6 +49,7 @@ class GraphReach(Task):
         assert answer_mode in ("query", "trace")
         assert not walker or answer_mode == "trace"
         assert not trace_ids or walker, "trace_ids requires walker mode"
+        assert not bijective or walker, "bijective requires walker mode"
         # trace_ids: VALUE-CODED walker trace -- the answer is one node-id token
         # per layer (the walker's position), not a yes/no frontier row. Rationale:
         # 1-hot yes/no rows are position-coded (identical pooled content for every

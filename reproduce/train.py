@@ -49,6 +49,8 @@ def main():
                  '--model-dim', str(kw.get('model_dim') or 0)]
         if meta.get('cond_ae_path'):
             extra += ['--cond-ae', resolve_checkpoint_path(meta['cond_ae_path'], anchor=path)]
+        if task.get('bijective'):
+            extra += ['--bijective']
         if meta['kind'] == 'ar':
             extra += ['--head', kw['head'], '--head-inner-steps', str(kw['head_inner_steps'])]
         else:
