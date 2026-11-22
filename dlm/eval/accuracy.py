@@ -14,6 +14,7 @@ import torch
 from dlm.data import make_task
 from dlm.concept.ae import ConceptAutoencoder
 from dlm.generators.ar import ConceptAR
+from dlm.generators.ar_refine import ConceptARRefinement
 from dlm.generators.diffusion import ConceptFlowMatching
 from dlm.generators.token_baselines import (TokenAR, TokenMaskedDiffusion,
                                             TokenUniformDiffusion, TokenMTP)
@@ -32,7 +33,7 @@ def load_generator(path: str, device=None):
     if ckpt.get('cond_ae_path'):
         ckpt['cond_ae_path'] = resolve_checkpoint_path(ckpt['cond_ae_path'], anchor=path)
     kind, kwargs = ckpt["kind"], ckpt["kwargs"]
-    gen = (ConceptFlowMatching if kind == "diffusion" else ConceptAR)(**kwargs)
+    gen = {"diffusion": ConceptFlowMatching, "ar_refine": ConceptARRefinement}.get(kind, ConceptAR)(**kwargs)
     gen.load_state_dict(ckpt["state_dict"])
     gen.to(device).eval()
     ae = ConceptAutoencoder.load(ckpt["ae_path"], map_location=device).to(device).eval()
@@ -74,7 +75,7 @@ def eval_concept_generator(
         b = task.sample(n_per_depth, depth=int(d), rng=rng)
         prompt = torch.as_tensor(b.prompt, device=device)
         cond = cond_ae.encode(prompt, sample=False)
-        kw = {"T": T} if (T is not None and gen.paradigm == "concept_diffusion") else {}
+        kw = {"T": T} if (T is not None and gen.paradigm in ("concept_diffusion", "concept_ar_refine")) else {}
         z = gen.sample(cond, n_target=m_a, **kw)
         pred = ae.decode(z, out_len=task.answer_len).argmax(-1).cpu().numpy()
         out[int(d)] = float(task.check(b.prompt, pred).mean())

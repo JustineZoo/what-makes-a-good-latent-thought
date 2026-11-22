@@ -18,6 +18,7 @@ import torch
 from dlm.data import make_task
 from dlm.concept.ae import ConceptAutoencoder
 from dlm.generators.ar import ConceptAR
+from dlm.generators.ar_refine import ConceptARRefinement
 from dlm.generators.diffusion import ConceptFlowMatching
 from dlm.train.loop import TaskSampler, get_device, train
 
@@ -32,7 +33,7 @@ def build_argparser():
     p.add_argument("--cond-ae", default=None,
                    help="optional separate frozen AE for the prompt/cond side (e.g. an R=1 AE), "
                         "isolating trace-compression from prompt-compression; default: same as --ae")
-    p.add_argument("--gen", choices=["ar", "diffusion"], required=True)
+    p.add_argument("--gen", choices=["ar", "diffusion", "ar_refine"], required=True)
     p.add_argument("--task", default="function_compose")
     p.add_argument("--task-n", type=int, default=5)
     p.add_argument("--task-max-depth", type=int, default=32)
@@ -122,6 +123,21 @@ def main(argv=None):
             model_dim=mdim,
             block=args.block,
             unpack_slots=unpack_k,
+        )
+    elif args.gen == "ar_refine":
+        gen = ConceptARRefinement(
+            d_concept=d,
+            n_layers=args.layers,
+            n_heads=args.heads,
+            max_concepts=max_concepts,
+            model_dim=mdim,
+        )
+        gen_kwargs = dict(
+            d_concept=d,
+            n_layers=args.layers,
+            n_heads=args.heads,
+            max_concepts=max_concepts,
+            model_dim=mdim,
         )
     else:
         gen = ConceptAR(
