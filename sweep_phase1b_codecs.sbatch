@@ -10,9 +10,8 @@
 #SBATCH --time=06:00:00
 #SBATCH --array=0-5%2
 
-set -euo pipefail
+set -e
 module load cuda/12.6
-source ~/.bashrc
 source ~/.venvs/dlm/bin/activate
 cd $HOME/what-makes-a-good-latent-thought
 mkdir -p logs outputs
