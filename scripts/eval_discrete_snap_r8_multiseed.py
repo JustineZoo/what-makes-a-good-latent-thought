@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 from dlm.eval.accuracy import load_generator, _task_from_meta
@@ -9,12 +10,8 @@ N_TOTAL = 2048
 CHUNK = 256
 DEPTH = 8
 
-gen, ae, cond_ae, meta = load_generator(ckpt_path, device=device)
-task = _task_from_meta(meta)
-m_a = meta.get("m_answer", task.answer_len // ae.R)  # 40 // 8 = 5 latents at D=8
-encoder = cond_ae if cond_ae is not None else ae
 
-def decode_latents(z_tensor):
+def decode_latents(ae, task, m_a, z_tensor):
     B, k, d = z_tensor.shape
     if k < m_a:
         pad = torch.zeros(B, m_a - k, d, device=device, dtype=z_tensor.dtype)
@@ -23,8 +20,9 @@ def decode_latents(z_tensor):
         full_z = z_tensor
     return ae.decode(full_z, out_len=task.answer_len).argmax(dim=-1)
 
+
 @torch.no_grad()
-def eval_seed(seed):
+def eval_seed(gen, ae, encoder, task, m_a, seed):
     rng = np.random.default_rng(seed)
     scores = {"free": [], "snap_1": [], "snap_2": [], "tf_last": []}
 
@@ -39,7 +37,7 @@ def eval_seed(seed):
 
         # 1. Free-Running Baseline
         z_free = gen.sample(cond, n_target=m_a)
-        pred_free = decode_latents(z_free).cpu().numpy()
+        pred_free = decode_latents(ae, task, m_a, z_free).cpu().numpy()
         scores["free"].append(task.check(batch.prompt, pred_free))
 
         # 2 & 3. Periodic Discrete Snapping (every 1 emission & every 2 emissions)
@@ -53,13 +51,13 @@ def eval_seed(seed):
                 k = len(latents)
                 if k % snap_every == 0 or k == m_a:
                     curr_z = torch.cat(latents, dim=1)
-                    toks_k = decode_latents(curr_z)
+                    toks_k = decode_latents(ae, task, m_a, curr_z)
                     snapped_k = ae.encode(toks_k, sample=False)[:, :k, :]
                     latents = [snapped_k[:, i:i+1, :] for i in range(k)]
                     seq = torch.cat([cond, bos, snapped_k], dim=1)
                 else:
                     seq = torch.cat([seq, nxt.unsqueeze(1)], dim=1)
-            pred_snap = decode_latents(torch.cat(latents, dim=1)).cpu().numpy()
+            pred_snap = decode_latents(ae, task, m_a, torch.cat(latents, dim=1)).cpu().numpy()
             scores[mode].append(task.check(batch.prompt, pred_snap))
 
         # 4. Teacher-Forced Final Emission Ceiling (Step 5 / Swaps 7-8)
@@ -67,16 +65,27 @@ def eval_seed(seed):
         h_tf = gen._hidden(tf_seq)[:, -1, :]
         nxt_tf = gen.head.sample(h_tf, steps=gen.head_inner_steps)
         tf_latents = torch.cat([gold_latents[:, :m_a - 1], nxt_tf.unsqueeze(1)], dim=1)
-        pred_tf = decode_latents(tf_latents).cpu().numpy()
+        pred_tf = decode_latents(ae, task, m_a, tf_latents).cpu().numpy()
         scores["tf_last"].append(task.check(batch.prompt, pred_tf))
 
     return {k: float(np.concatenate(v).mean()) * 100 for k, v in scores.items()}
 
-if __name__ == "__main__":
+
+def main():
+    os.makedirs("outputs", exist_ok=True)
+    if not os.path.exists(ckpt_path):
+        print(f"Checkpoint {ckpt_path} not found; skipping eval.")
+        return
+
+    gen, ae, cond_ae, meta = load_generator(ckpt_path, device=device)
+    task = _task_from_meta(meta)
+    m_a = meta.get("m_answer", task.answer_len // ae.R)  # 40 // 8 = 5 latents at D=8
+    encoder = cond_ae if cond_ae is not None else ae
+
     print(f"Running R=8, D=8 Discrete-Snapping Multi-Seed Eval on {device}...")
     agg = {"free": [], "snap_1": [], "snap_2": [], "tf_last": []}
     for s in seeds:
-        res = eval_seed(s)
+        res = eval_seed(gen, ae, encoder, task, m_a, s)
         print(f"Seed {s}: Free={res['free']:.2f}% | Snap-1={res['snap_1']:.2f}% | Snap-2={res['snap_2']:.2f}% | TF-Last={res['tf_last']:.2f}%")
         for k in agg:
             agg[k].append(res[k])
@@ -101,3 +110,8 @@ if __name__ == "__main__":
     print("\n" + report)
     with open("outputs/bbh_r8_d8_snapping_multiseed.txt", "w") as f:
         f.write(report + "\n")
+
+
+if __name__ == "__main__":
+    main()
+

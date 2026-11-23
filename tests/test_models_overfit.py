@@ -81,7 +81,7 @@ def _overfit_generator(kind):
     for _ in range(300):
         loss = gen.fit_step(target, cond)
         opt.zero_grad(); loss.backward(); opt.step()
-        losses.append(float(loss))
+        losses.append(float(loss.detach()))
     assert losses[-1] < 0.7 * losses[0], f"{kind} gen did not reduce loss: {losses[0]:.3f}->{losses[-1]:.3f}"
     # sampling returns the right shape
     z = gen.sample(cond, n_target=target.shape[1], **({"T": 8} if kind == "diffusion" else {}))
