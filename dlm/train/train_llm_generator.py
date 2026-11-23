@@ -63,6 +63,8 @@ def evaluate_generator(
 
     tf_results, fr_results = [], []
     first_emit_hits, first_emit_total = 0, 0
+    latent_counts, ctx_lens = [], []
+    t_eval_start = time.perf_counter()
 
     for batch in loader:
         q_ids, q_mask = batch["q_ids"].to(device), batch["q_mask"].to(device)
@@ -82,6 +84,8 @@ def evaluate_generator(
             fe_logits = codec.decode_logits(codec.unstandardize(fe_z), q_ids, q_mask, out_len=out_len)
 
             fr_z = gen.sample(q_ids, q_mask, n_latents=n_lat)
+            latent_counts.extend([n_lat] * q_ids.shape[0])
+            ctx_lens.extend([int(q_ids.shape[1] + n_lat)] * q_ids.shape[0])
             fr_logits = codec.decode_logits(codec.unstandardize(fr_z), q_ids, q_mask, out_len=out_len)
 
         tf_ids = tf_logits.argmax(dim=-1).cpu()
@@ -97,11 +101,19 @@ def evaluate_generator(
             first_emit_hits += int(fe_res.first_error_pos != 0)
             first_emit_total += 1
 
+    eval_elapsed = max(1e-9, time.perf_counter() - t_eval_start)
+    n_eval = max(1, len(fr_results))
+    mean_lat = sum(latent_counts) / n_eval
     gen.train()
     return {
         "teacher_forced": summarize_results(tf_results),
         "first_emission_step0_acc": first_emit_hits / max(1, first_emit_total),
         "free_running": summarize_results(fr_results),
+        "mean_latent_steps": mean_lat,
+        "mean_forward_passes": mean_lat * gen.head_inner_steps,
+        "mean_context_len": sum(ctx_lens) / n_eval,
+        "eval_wall_clock_sec": eval_elapsed,
+        "eval_ms_per_example": (eval_elapsed * 1000.0) / n_eval,
     }
 
 

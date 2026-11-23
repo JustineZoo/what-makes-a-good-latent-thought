@@ -73,6 +73,12 @@ def serial_compute(
     if paradigm == "concept_diffusion":
         assert T is not None
         return concept_diffusion_serial(T)
+    if paradigm == "token_mtp":
+        assert n_answer_tokens is not None
+        return concept_count(n_answer_tokens, R)
+    if paradigm == "concept_ar_refine":
+        assert n_answer_tokens is not None and T is not None
+        return concept_ar_serial(concept_count(n_answer_tokens, R), head_inner_steps=T)
     raise ValueError(f"unknown paradigm {paradigm!r}")
 
 

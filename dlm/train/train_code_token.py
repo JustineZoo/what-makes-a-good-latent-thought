@@ -30,6 +30,8 @@ def build_argparser():
     p.add_argument("--task-n", type=int, default=5)
     p.add_argument("--task-max-depth", type=int, default=32)
     p.add_argument("--answer-mode", default="trace")
+    p.add_argument("--group", default="s5", choices=["s5", "affine", "walker", "walkerids"])
+    p.add_argument("--bijective", action="store_true", help="Enforce bijective permutations in graph_reach")
     p.add_argument("--d", type=int, default=384)
     p.add_argument("--layers", type=int, default=16)
     p.add_argument("--heads", type=int, default=8)
@@ -54,12 +56,19 @@ def main(argv=None):
     fsq = load_codec(args.fsq, map_location=device).to(device).eval()
     for pm in fsq.parameters():
         pm.requires_grad_(False)
-    task_kwargs = (
-        {"max_depth": args.task_max_depth, "answer_mode": args.answer_mode}
-        if args.task == "pronto_qa"
-        else dict(n=args.task_n, max_depth=args.task_max_depth,
-                  answer_mode=args.answer_mode)
-    )
+    task_kwargs = {}
+    if args.task == "function_compose":
+        task_kwargs = dict(n=args.task_n, max_depth=args.task_max_depth, answer_mode=args.answer_mode, group=args.group)
+    elif args.task == "graph_reach":
+        task_kwargs = dict(width=args.task_n, max_depth=args.task_max_depth,
+                           answer_mode=args.answer_mode, p_edge=0.6, out_degree=2,
+                           walker=(args.group in ("walker", "walkerids")),
+                           trace_ids=(args.group == "walkerids"),
+                           bijective=args.bijective)
+    elif args.task == "pronto_qa":
+        task_kwargs = dict(max_depth=args.task_max_depth, answer_mode=args.answer_mode)
+    else:
+        task_kwargs = dict(n=args.task_n, max_depth=args.task_max_depth, answer_mode=args.answer_mode)
     task = make_task(args.task, **task_kwargs)
     K = fsq.cfg.n_slots
     m_p = -(-task.prompt_len // fsq.R) * K

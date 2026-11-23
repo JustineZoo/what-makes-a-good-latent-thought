@@ -60,7 +60,7 @@ def main(argv=None):
 
     rows = []
     for path in sorted(glob.glob(os.path.join(args.runs, "*.pt"))):
-        ckpt = torch.load(path, map_location=device)
+        ckpt = torch.load(path, map_location=device, weights_only=False)
         paradigm = ckpt.get("paradigm", "")
         if not paradigm.startswith("code_token"):
             print(f"[code_eval] skipping {os.path.basename(path)} ({paradigm!r})")

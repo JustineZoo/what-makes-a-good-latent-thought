@@ -68,6 +68,9 @@ def probe_gen(path: str, depths, T_max: int, k_list, n: int, device, seed: int =
         cond = cond_ae.encode(prompt, sample=False)
         cond_alt = torch.roll(cond, shifts=1, dims=0)  # another problem, same depth
         gold = task.oracle(b.prompt)
+        assert hasattr(task, 'n') and task.answer_len >= depth * task.n, (
+            f'blind_probe requires trace mode (got task={task.name}, answer_len={task.answer_len})'
+        )
         nn = task.n
 
         def run(T, k, direction):

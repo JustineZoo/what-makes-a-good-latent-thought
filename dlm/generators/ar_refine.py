@@ -84,6 +84,11 @@ class ConceptARRefinement(Generator):
         noisy_ok = (q_i >= mc + mt) & ((k_j < mc + query_k) | (k_j == q_i))
         return cond_ok | clean_ok | noisy_ok
 
+    def _build_eval_mask(self, mc: int, total_len: int, device: torch.device) -> torch.Tensor:
+        idx = torch.arange(total_len, device=device)
+        q_i, k_j = idx[:, None], idx[None, :]
+        return ((q_i < mc) & (k_j < mc)) | ((q_i >= mc) & (k_j <= q_i))
+
     def fit_step(self, target: torch.Tensor, cond: torch.Tensor) -> torch.Tensor:
         B, mt, d = target.shape
         mc = cond.shape[1]
@@ -123,6 +128,7 @@ class ConceptARRefinement(Generator):
         for k in range(n_target):
             cur_len = prefix.shape[1]
             pos_ids = torch.arange(cur_len + 1, device=device)
+            eval_mask = self._build_eval_mask(mc, cur_len + 1, device)
             sc_prefix = torch.zeros_like(prefix)
             t_prefix = torch.zeros(B, cur_len, device=device)
 
@@ -133,7 +139,7 @@ class ConceptARRefinement(Generator):
                 z_seq = torch.cat([prefix, z], dim=1)
                 sc_seq = torch.cat([sc_prefix, x0_hat], dim=1)
                 t_seq = torch.cat([t_prefix, torch.full((B, 1), t_val, device=device)], dim=1)
-                x0_hat = self._forward_tokens(z_seq, sc_seq, t_seq, pos_ids, attn_mask=None)[:, -1:, :]
+                x0_hat = self._forward_tokens(z_seq, sc_seq, t_seq, pos_ids, attn_mask=eval_mask)[:, -1:, :]
                 z = z - (1.0 / T) * (z - x0_hat) / t_val
 
             prefix = torch.cat([prefix, z], dim=1)

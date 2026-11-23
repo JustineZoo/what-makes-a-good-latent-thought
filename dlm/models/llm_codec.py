@@ -100,8 +100,7 @@ class LLMLatentCodec(nn.Module):
         extra_len = seq_emb.shape[1] - q_emb.shape[1]
         extra_mask = torch.ones((B, extra_len), device=device, dtype=q_mask.dtype)
         seq_mask = torch.cat([q_mask, extra_mask], dim=1)
-        pos_ids = seq_mask.long().cumsum(-1) - 1
-        pos_ids.masked_fill_(seq_mask == 0, 0)
+        pos_ids = (seq_mask.long().cumsum(-1) - 1).clamp(min=0)
 
         out = self.decoder(
             inputs_embeds=seq_emb,
@@ -169,8 +168,7 @@ class LLMLatentGenerator(nn.Module):
         extra_len = seq_emb.shape[1] - q_emb.shape[1]
         extra_mask = torch.ones((B, extra_len), device=q_ids.device, dtype=q_mask.dtype)
         seq_mask = torch.cat([q_mask, extra_mask], dim=1)
-        pos_ids = seq_mask.long().cumsum(-1) - 1
-        pos_ids.masked_fill_(seq_mask == 0, 0)
+        pos_ids = (seq_mask.long().cumsum(-1) - 1).clamp(min=0)
 
         out = self.backbone(
             inputs_embeds=seq_emb,
@@ -215,8 +213,7 @@ class LLMLatentGenerator(nn.Module):
 
         emitted = []
         for _ in range(n_latents):
-            pos_ids = seq_mask.long().cumsum(-1) - 1
-            pos_ids.masked_fill_(seq_mask == 0, 0)
+            pos_ids = (seq_mask.long().cumsum(-1) - 1).clamp(min=0)
             out = self.backbone(
                 inputs_embeds=seq_emb,
                 attention_mask=seq_mask,

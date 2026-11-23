@@ -162,7 +162,7 @@ class FSQAutoencoder(nn.Module):
 
     @classmethod
     def load(cls, path: str, map_location=None) -> "FSQAutoencoder":
-        ckpt = torch.load(path, map_location=map_location)
+        ckpt = torch.load(path, map_location=map_location, weights_only=False)
         model = cls(FSQConfig(**ckpt["cfg"]))
         model.load_state_dict(ckpt["state_dict"])
         return model

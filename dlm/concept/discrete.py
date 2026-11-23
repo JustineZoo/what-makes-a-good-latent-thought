@@ -82,7 +82,7 @@ class KMeansCodec(nn.Module):
     @classmethod
     def load(cls, path: str, map_location=None) -> "KMeansCodec":
         from dlm.concept.ae import AEConfig
-        ckpt = torch.load(path, map_location=map_location)
+        ckpt = torch.load(path, map_location=map_location, weights_only=False)
         ae = ConceptAutoencoder(AEConfig(**ckpt["ae_cfg"]))
         ae.load_state_dict(ckpt["ae_state"])
         return cls(ae.eval(), ckpt["centroids"])
@@ -90,7 +90,7 @@ class KMeansCodec(nn.Module):
 
 def load_codec(path: str, map_location=None):
     """Dispatch loader: kmeans_codec or (experimental) FSQ checkpoints."""
-    kind = torch.load(path, map_location="cpu").get("kind", "")
+    kind = torch.load(path, map_location="cpu", weights_only=False).get("kind", "")
     if kind == "kmeans_codec":
         return KMeansCodec.load(path, map_location)
     from dlm.concept.fsq import FSQAutoencoder
