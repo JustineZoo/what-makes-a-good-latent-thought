@@ -21,5 +21,6 @@ wandb/
 slurm*.out
 slurm*.err
 logs/
-repo-code.mdoutputs/
+repo-code.md
+outputs/
 *.pyc
