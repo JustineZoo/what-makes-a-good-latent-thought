@@ -41,6 +41,20 @@ def probe(path: str, depth: int, n: int, device, seed: int = 31415):
     bos = gen.bos.expand(B, 1, d)
     seq = torch.cat([cond, bos, target[:, :-1]], dim=1)
     h = gen._hidden(seq)[:, -mt:, :]
+    if getattr(gen, "use_slot_buffer", False):
+        slots = gen.slot_buffer.init_slots(cond)
+        h_cond = []
+        for t in range(mt):
+            ht, slots = gen.slot_buffer(h[:, t, :], slots)
+            h_cond.append(ht)
+        h = torch.stack(h_cond, dim=1)
+    elif getattr(gen, "use_gru_buffer", False):
+        state = gen.gru_buffer.init_state(cond)
+        h_cond = []
+        for t in range(mt):
+            ht, state = gen.gru_buffer(h[:, t, :], state)
+            h_cond.append(ht)
+        h = torch.stack(h_cond, dim=1)
 
     per_span = []
     for k in range(mt):

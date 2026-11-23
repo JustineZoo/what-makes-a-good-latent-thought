@@ -142,4 +142,10 @@ class LearnedPositionalEmbedding(nn.Module):
         nn.init.normal_(self.pos, std=0.02)
 
     def forward(self, x):
-        return x + self.pos[:, : x.shape[1]]
+        L = x.shape[1]
+        if L > self.pos.shape[1]:
+            interp = F.interpolate(
+                self.pos.transpose(1, 2), size=L, mode="linear", align_corners=True
+            ).transpose(1, 2)
+            return x + interp
+        return x + self.pos[:, :L]

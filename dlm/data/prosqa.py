@@ -49,7 +49,7 @@ def parse_prosqa_record(rec: Dict[str, object]) -> Optional[ProsQAExample]:
 
     prompt = format_prompt(question)
     step_str = " ".join(steps)
-    target = f" {step_str} #### {ans}" if step_str else f" #### {ans}"
+    target = f"{step_str}\n#### {ans}" if step_str else f"#### {ans}"
     return ProsQAExample(
         prompt=prompt,
         question=question,
@@ -108,8 +108,8 @@ def audit_prosqa_shortcuts(examples: Sequence[ProsQAExample]) -> Dict[str, objec
 
         # Count occurrences in the premise portion before the final question sentence
         premise = ex.question.rsplit(".", 1)[0].lower()
-        best_cand = max(cands, key=lambda c: len(re.findall(rf"\b{re.escape(c.lower())}\b", premise)))
-        if best_cand.lower() == gt:
+        counts = [len(re.findall(rf"\b{re.escape(c.lower())}\b", premise)) for c in cands]
+        if counts and max(counts) > 0 and cands[counts.index(max(counts))].lower() == gt:
             freq_hits += 1
 
     chance = chance_sum / n

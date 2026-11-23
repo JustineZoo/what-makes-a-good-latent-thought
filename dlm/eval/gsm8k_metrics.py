@@ -136,14 +136,19 @@ def score_prediction(
     n_gold = len(gold_parsed)
     n_pred = len(pred_parsed)
     if n_gold == 0:
+        err = (
+            "none"
+            if answer_correct
+            else ("malformed_step" if pred_ans_val is None else "arithmetic_error")
+        )
         return TraceEvalResult(
             answer_correct=answer_correct,
-            step_exact_acc=1.0 if n_pred == 0 else 0.0,
+            step_exact_acc=1.0 if (n_pred == 0 or answer_correct) else 0.0,
             arithmetic_consistency=arith_consistency,
             n_gold_steps=0,
             n_pred_steps=n_pred,
-            first_error_pos=-1,
-            error_type="none",
+            first_error_pos=-1 if answer_correct else 0,
+            error_type=err,
         )
 
     matched = 0

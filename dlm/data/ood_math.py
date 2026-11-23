@@ -47,7 +47,7 @@ def _normalize_record(rec: Dict[str, object], dataset_name: str) -> Optional[GSM
     if not question or not ans:
         return None
     prompt = format_prompt(question)
-    target = f" #### {ans}"
+    target = f"#### {ans}"
     return GSM8KExample(
         prompt=prompt,
         question=question,
