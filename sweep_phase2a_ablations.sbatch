@@ -52,7 +52,7 @@ python -m dlm.train.train_phase2_ablation \
   --refine-steps 4 \
   --epochs 3 \
   --batch-size 256 \
-  --micro-batch-size 16 \
+  --micro-batch-size 4 \
   --lr 1e-4 \
   --out-dir "${OUT}"
 

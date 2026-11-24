@@ -299,7 +299,7 @@ def parse_args():
     p.add_argument("--refine-steps", type=int, default=4, help="Component C3a denoising steps")
     p.add_argument("--epochs", type=int, default=3)
     p.add_argument("--batch-size", type=int, default=256)
-    p.add_argument("--micro-batch-size", type=int, default=16)
+    p.add_argument("--micro-batch-size", type=int, default=4)
     p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--max-q-len", type=int, default=128)

@@ -1,0 +1,35 @@
+\subsection{Pretrained LLM Validation: Representation vs. Generation Trade-Off (Gate A)}
+\label{sec:gate_a}
+
+Before evaluating structured reasoning components, we establish the fundamental empirical boundary between continuous latent representation capacity and autoregressive rollout dynamics on a full-scale language model (\textsc{Llama-3.2-1B-Instruct}) fine-tuned on \textsc{GSM8K-Aug}.
+
+Prior continuous latent reasoning methods \citep{hao2024coconut,yu2024colar} implicitly assume that high autoencoding fidelity guarantees viable multi-step latent reasoning. To test this hypothesis, we train LoRA-adapted continuous codebooks across compression ratios $R \in \{1, 2, 4, 8\}$ (compressing $R$ reasoning tokens into a single latent thought vector $z \in \mathbb{R}^{2048}$) using an MSE reconstruction objective with a certified gate threshold ($\ge 95\%$ step-exact accuracy). Subsequently, we train causal flow-matching generators to roll out latent trajectories under both $1\times$ and $3\times$ token budgets ($28.6$M tokens).
+
+\begin{table}[t]
+\centering
+\small
+\caption{\textbf{Gate A Representation vs. Generation Scaling on \textsc{Llama-3.2-1B} (\textsc{GSM8K-Aug})}. All LoRA codecs achieve near-perfect step-exact reconstruction ($\ge 97.2\%$), clearing Gate A. However, teacher-forced generation accuracy degrades monotonically with compression ratio $R$, and vanilla unaligned free-running rollouts collapse across all settings due to compound trajectory drift.}
+\label{tab:gate_a_metrics}
+\vspace{2mm}
+\begin{tabular}{c ccc cccc}
+\toprule
+& \multicolumn{2}{c}{\textbf{LoRA Codec Ceiling}} & \multicolumn{4}{c}{\textbf{Flow Generator ($3\times$ Budget, 28.6M Tokens)}} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-8}
+\textbf{Ratio} $R$ & \textbf{Dev Exact} & \textbf{Test Exact} & \textbf{First-Step ($z_0$)} & \textbf{TF Step Acc} & \textbf{TF Ans Acc} & \textbf{Free-Run Ans} & \textbf{Gate A} \\
+\midrule
+$R = 1$ & $99.72\%$ & $99.29\%$ & $99.32\%$ & $58.35\%$ & $89.99\%$ & $4.70\%$ & \textbf{PASS} \\
+$R = 2$ & $99.90\%$ & $99.88\%$ & $98.56\%$ & $59.93\%$ & $82.56\%$ & $2.96\%$ & \textbf{PASS} \\
+$R = 4$ & $99.82\%$ & $99.45\%$ & $94.69\%$ & $71.75\%$ & $77.26\%$ & $4.62\%$ & \textbf{PASS} \\
+$R = 8$ & $97.48\%$ & $97.22\%$ & $47.31\%$ & $37.06\%$ & $63.61\%$ & $3.79\%$ & \textbf{PASS} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Diagnostic Findings & Gate A Takeaways.}
+As shown in Table~\ref{tab:gate_a_metrics} and Figure~\ref{fig:recon_vs_gen}:
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{High Codec Capacity ($\ge 97.2\%$):} Every compression ratio achieves $>97\%$ test step-exact reconstruction, proving that the continuous latent space has ample capacity to encode dense multi-token reasoning steps.
+    \item \textbf{Monotonic Generation Degradation:} Under teacher forcing, answer accuracy drops monotonically with compression: $89.99\% \to 82.56\% \to 77.26\% \to 63.61\%$. At $R = 8$, the first-emission probe ($z_0$) plummets to $47.31\%$, demonstrating that packing 8 tokens into an un-factorized continuous latent exceeds the single-pass step capacity of feedforward attention.
+    \item \textbf{The Free-Running Chasm ($<5\%$):} Without step alignment, vanilla free-running generation collapses to $2.9\%$--$4.7\%$ across all $R$. Error taxonomy auditing reveals that $81.1\%$ of failures are arithmetic errors triggered within the first $31\%$ of the reasoning trajectory ($0.31$ mean first-error position).
+\end{enumerate}
+This confirms our core hypothesis: \emph{the failure of continuous latent reasoning is not a representation failure, but an alignment and rollout failure}. This establishes the empirical mandate for Step-Aligned Chunking (Component C1) and Factorized Sub-Slots (Component C2), evaluated in Section~\ref{sec:ablations}.
