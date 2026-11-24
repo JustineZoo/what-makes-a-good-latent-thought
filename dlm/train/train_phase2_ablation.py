@@ -255,6 +255,7 @@ def evaluate_ablation(
     max_q_len: int = 128,
     max_cot_len: int = 160,
     steps: Optional[int] = None,
+    amp_dtype: torch.dtype = torch.float16,
 ) -> Dict[str, object]:
     gen.eval()
     codec.eval()
@@ -274,8 +275,9 @@ def evaluate_ablation(
         R = codec.cfg.R
         n_latents = max(1, math.ceil(out_len / R))
 
-        fr_z = gen.sample(q_ids, q_mask, n_latents=n_latents, steps=steps)
-        logits = codec.decode_logits(codec.unstandardize(fr_z), q_ids, q_mask, out_len=out_len)
+        with torch.amp.autocast("cuda", dtype=amp_dtype, enabled=(device.type == "cuda")):
+            fr_z = gen.sample(q_ids, q_mask, n_latents=n_latents, steps=steps)
+            logits = codec.decode_logits(codec.unstandardize(fr_z), q_ids, q_mask, out_len=out_len)
         pred_ids = logits.argmax(dim=-1).cpu().tolist()
 
         for ex, p_ids in zip(batch_exs, pred_ids):
@@ -399,21 +401,30 @@ def main():
                     print(f"  [{args.system}] update {update_step:5d}/{total_updates} | tokens={tokens_seen:,} | loss={run_loss/denom:.4f} | {(time.time()-t0)/60:.1f}m")
                     run_loss = 0.0
 
+                if update_step % 500 == 0:
+                    torch.save({"system": args.system, "state_dict": gen.state_dict(), "cfg": vars(args), "step": update_step}, out_dir / "gen_latest.pt")
+
     # Save final model
     torch.save({"system": args.system, "state_dict": gen.state_dict(), "cfg": vars(args)}, out_dir / "gen_final.pt")
 
     # Final Evaluations
     print("\n--- Running Official GSM8K-Aug Test Evaluation ---")
-    gsm8k_metrics = evaluate_ablation(gen, codec, tokenizer, splits["test"], device, batch_size=16, steps=flow_steps)
+    gsm8k_metrics = evaluate_ablation(gen, codec, tokenizer, splits["test"], device, batch_size=16, steps=flow_steps, amp_dtype=amp_dtype)
     (out_dir / "metrics_gsm8k.json").write_text(json.dumps(gsm8k_metrics, indent=2))
 
-    print("\n--- Running Out-of-Distribution Math Evaluations (SVAMP, GSM-Hard, MultiArith) ---")
+    print("\n--- Running Out-of-Distribution Evaluations (SVAMP, GSM-Hard, MultiArith, ProsQA) ---")
     ood_results = {}
     for ds_name in ["svamp", "gsm_hard", "multiarith"]:
         exs = load_ood_math_split(ds_name)
-        ood_results[ds_name] = evaluate_ablation(gen, codec, tokenizer, exs, device, batch_size=16, steps=flow_steps)
+        ood_results[ds_name] = evaluate_ablation(gen, codec, tokenizer, exs, device, batch_size=16, steps=flow_steps, amp_dtype=amp_dtype)
+    try:
+        prosqa_exs = load_prosqa_split("test")
+        ood_results["prosqa"] = evaluate_ablation(gen, codec, tokenizer, prosqa_exs, device, batch_size=16, steps=flow_steps, amp_dtype=amp_dtype)
+    except Exception as e:
+        print(f"Warning: ProsQA evaluation skipped due to {e}")
     (out_dir / "metrics_ood.json").write_text(json.dumps(ood_results, indent=2))
 
+    prosqa_acc_str = f"{ood_results['prosqa']['answer_accuracy']*100:.2f}%" if "prosqa" in ood_results else "N/A"
     summary = (
         f"Phase 2a System: {args.system} (Seed={args.seed})\n"
         f"Updates: {update_step} | Tokens Seen: {tokens_seen:,}\n"
@@ -421,6 +432,7 @@ def main():
         f"SVAMP Answer Acc     : {ood_results['svamp']['answer_accuracy']*100:.2f}%\n"
         f"GSM-Hard Answer Acc  : {ood_results['gsm_hard']['answer_accuracy']*100:.2f}%\n"
         f"MultiArith Answer Acc: {ood_results['multiarith']['answer_accuracy']*100:.2f}%\n"
+        f"ProsQA Answer Acc    : {prosqa_acc_str}\n"
     )
     print("\n" + summary)
     (out_dir / "summary.txt").write_text(summary)

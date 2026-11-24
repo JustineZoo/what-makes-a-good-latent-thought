@@ -90,7 +90,7 @@ class LLMLatentCodec(nn.Module):
         B, m, _ = z.shape
         device = z.device
         q_emb = self.decoder.get_input_embeddings()(q_ids)
-        z_emb = self.latent_in(z)
+        z_emb = self.latent_in(z).to(q_emb.dtype)
 
         idx = torch.arange(out_len, device=device)
         q_queries = self.chunk_pos(idx // self.cfg.R) + self.offset_pos(idx % self.cfg.R)

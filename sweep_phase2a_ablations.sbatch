@@ -7,8 +7,8 @@
 #SBATCH --gres=gpu:1
 #SBATCH -c 8
 #SBATCH --mem=64G
-#SBATCH --time=08:00:00
-#SBATCH --array=0-8%9
+#SBATCH --time=16:00:00
+#SBATCH --array=0-2,5-8%7
 
 set -e
 module load cuda/12.6
