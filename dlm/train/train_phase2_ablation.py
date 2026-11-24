@@ -418,7 +418,8 @@ def main():
         exs = load_ood_math_split(ds_name)
         ood_results[ds_name] = evaluate_ablation(gen, codec, tokenizer, exs, device, batch_size=16, steps=flow_steps, amp_dtype=amp_dtype)
     try:
-        prosqa_exs = load_prosqa_split("test")
+        prosqa_path = "data/prosqa/prosqa_test.json" if Path("data/prosqa/prosqa_test.json").exists() else None
+        prosqa_exs = load_prosqa_split("test", local_path=prosqa_path)
         ood_results["prosqa"] = evaluate_ablation(gen, codec, tokenizer, prosqa_exs, device, batch_size=16, steps=flow_steps, amp_dtype=amp_dtype)
     except Exception as e:
         print(f"Warning: ProsQA evaluation skipped due to {e}")

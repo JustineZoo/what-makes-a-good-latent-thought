@@ -111,7 +111,8 @@ def main():
 
     # 7. Evaluate on ProsQA
     try:
-        prosqa_exs = load_prosqa_split("test")
+        prosqa_path = "data/prosqa/prosqa_test.json" if Path("data/prosqa/prosqa_test.json").exists() else None
+        prosqa_exs = load_prosqa_split("test", local_path=prosqa_path)
         print(f" Evaluating ProsQA ({len(prosqa_exs)} examples)...")
         res_prosqa = evaluate_ablation(
             gen, codec, tokenizer, prosqa_exs, device, batch_size=args.batch_size, steps=flow_steps, amp_dtype=amp_dtype
