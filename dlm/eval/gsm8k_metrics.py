@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 _STEP_RE = re.compile(r"(?:<<|«)\s*([^<>«»=]+?)\s*=\s*([^<>«»]+?)\s*(?:>>|»)")
 _FINAL_HASH_RE = re.compile(r"####\s*([-+]?\$?\d[\d,]*(?:\.\d+)?)")
+_FINAL_HASH_TEXT_RE = re.compile(r"####\s*([^\n\r]+)")
 _NUM_RE = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?")
 
 _BIN_OPS = {
@@ -121,8 +122,20 @@ def score_prediction(
     pred_parsed = extract_steps(pred_text)
 
     gold_ans_val = parse_number(gold_answer)
-    pred_ans_val = extract_final_answer(pred_text)
-    answer_correct = nums_equal(pred_ans_val, gold_ans_val)
+    if gold_ans_val is not None:
+        pred_ans_val = extract_final_answer(pred_text)
+        answer_correct = nums_equal(pred_ans_val, gold_ans_val)
+    else:
+        # String/text answer matching (e.g. ProsQA non-numeric tasks)
+        pred_ans_val = None
+        gold_clean = str(gold_answer).strip().rstrip(".").lower()
+        m = _FINAL_HASH_TEXT_RE.search(pred_text)
+        if m:
+            pred_str = m.group(1).strip().rstrip(".").lower()
+            answer_correct = (pred_str == gold_clean)
+        else:
+            words = [w.strip(".,;:?!'\"()[]{}").lower() for w in pred_text.split() if w.strip()]
+            answer_correct = bool(words and words[-1] == gold_clean)
 
     # Arithmetic consistency across all emitted steps: does expr evaluate to value?
     if pred_parsed:
