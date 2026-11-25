@@ -7,7 +7,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH -c 8
 #SBATCH --mem=32G
-#SBATCH --time=12:00:00
+#SBATCH --time=16:00:00
 #SBATCH --array=0-7%8
 
 set -e
@@ -44,7 +44,7 @@ python -m dlm.train.train_phase2_colar \
   --K 4 \
   --epochs 3 \
   --batch-size 256 \
-  --micro-batch-size 8 \
+  --micro-batch-size 4 \
   --eval-batch-size 32 \
   --lr 1e-4 \
   --seed "${SEED}" \

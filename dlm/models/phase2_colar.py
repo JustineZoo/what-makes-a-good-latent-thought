@@ -218,13 +218,17 @@ class Phase2CoLaR(nn.Module):
         return self.llm.get_input_embeddings()
 
     def _prepare_texts(self, texts: List[str], padding_side: str) -> Tuple[torch.Tensor, torch.Tensor]:
-        enc = self.tokenizer.batch_encode_plus(
-            texts,
-            return_tensors="pt",
-            add_special_tokens=False,
-            padding="longest",
-            padding_side=padding_side,
-        )
+        orig_side = getattr(self.tokenizer, "padding_side", "right")
+        self.tokenizer.padding_side = padding_side
+        try:
+            enc = self.tokenizer(
+                texts,
+                return_tensors="pt",
+                add_special_tokens=False,
+                padding=True,
+            )
+        finally:
+            self.tokenizer.padding_side = orig_side
         device = next(self.llm.parameters()).device
         return enc["input_ids"].to(device), enc["attention_mask"].to(device)
 

@@ -51,13 +51,14 @@ class _WordLevelMockTokenizer:
     def convert_tokens_to_ids(self, tok: str) -> int:
         return self.vocab.get(tok, self.unk_token_id)
 
-    def batch_encode_plus(self, texts, return_tensors="pt", add_special_tokens=False, padding="longest", padding_side="left"):
+    def __call__(self, texts, return_tensors="pt", add_special_tokens=False, padding=True, padding_side=None):
+        side = padding_side or getattr(self, "padding_side", "left")
         encs = [self.encode(t, add_special_tokens=add_special_tokens) for t in texts]
         max_len = max(1, max(len(e) for e in encs))
         ids, masks = [], []
         for e in encs:
             pad_n = max_len - len(e)
-            if padding_side == "left":
+            if side == "left":
                 ids.append([self.pad_token_id] * pad_n + e)
                 masks.append([0] * pad_n + [1] * len(e))
             else:
